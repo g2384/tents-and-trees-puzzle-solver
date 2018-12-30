@@ -1,0 +1,104 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Tents and Trees Puzzles Solver</title>
+    <link rel="stylesheet" type="text/css" href="style.css" />
+</head>
+
+<body>
+    <p class="size_input" align="center">
+        Map Size:
+        <input id="width" type="number" min="4" max="16" step="1" value="4" /> x
+        <input id="length" type="number" min="4" max="16" step="1" value="4" />
+        <button id="create_grid" class="btn" type="button" onclick="create();">Create</button>
+        <button id="create_grid" class="btn" type="button" onclick="solve();">Solve</button>
+    </p>
+    <p>1. Click <a onclick="create();">Create</a> to generate a map<br>2. Click the cell to place a tree</p>
+    <div id="map"></div>
+    <div id="result"></div>
+</body>
+<script src="solver.js"></script>
+<script>
+    var treeMap = [];
+    var topHints = [];
+    var leftHints = [];
+    var resultDiv = document.getElementById("result");
+
+    function solve() {
+        var rowCount = treeMap.length;
+        var columnCount = treeMap[0].length;
+        topHints = new Array(columnCount);
+        leftHints = new Array(rowCount);
+        for (var column = 0; column < columnCount; column++) {
+            topHints[column] = parseInt(document.getElementById("top_hint_" + column).value);
+        }
+        for (var row = 0; row < rowCount; row++) {
+            leftHints[row] = parseInt(document.getElementById("left_hint_" + row).value);
+        }
+        resultDiv.innerHTML = solve2(treeMap, topHints, leftHints, rowCount, columnCount);
+    }
+
+    function setTree(i, j) { //i = horizontal, j = vertical
+        var isTree = treeMap[i][j];
+        var invertIsTree = !isTree;
+        treeMap[i][j] = invertIsTree;
+        var grid = document.getElementById(i + "_" + j);
+        grid.classList.toggle("tree");
+    }
+
+    function create() {
+        resultDiv.innerHTML = "";
+        var map = document.getElementById("map");
+        var width = parseInt(document.getElementById("width").value);
+        var length = parseInt(document.getElementById("length").value);
+
+        topHints = new Array(width);
+        leftHints = new Array(length);
+        treeMap = new Array(length);
+        for (var i = 0; i < length; i++) {
+            treeMap[i] = new Array(width);
+            treeMap[i].fill(false);
+        }
+
+        const squareSize = (95 / (width + 1));
+        var topHintsHtml = new Array(width);
+        for (var i = 0; i < width; i++) {
+            topHintsHtml[i] = `<div class="no_border_square_top" style="width:${squareSize}%; padding-bottom:${squareSize}%">
+			  <div class="numTents">
+					<p class="top_num_tents" ><input type="number" id="top_hint_${i}"
+       					min="0"
+       					max="${length}"
+       					step="1"
+       					value="0"/>
+       				</p>
+				</div>
+			</div>`;
+        }
+        var mapHtml = `<div class="no_border_square_top" style="width:${squareSize}%; padding-bottom:${squareSize}%">
+    				<div class="corner">
+    				</div>
+				</div>` + topHintsHtml.join("");
+        for (var i = 0; i < length; i++) {
+            mapHtml += `<div class="no_border_square_front" style="width:${squareSize}%; padding-bottom:${squareSize}%">
+			  <div class="numTents">
+					<p class="top_num_tents" ><input type="number" id="left_hint_${i}"
+       					min="0"
+       					max="${width}"
+       					step="1"
+       					value="0"/>
+       				</p>
+				</div>
+			</div>`;
+            for (var j = 0; j < width; j++) {
+                mapHtml += `<div class="square" id="${i}_${j}" onclick="setTree(${i}, ${j});" style="width:${squareSize}%; padding-bottom:${squareSize}%">
+              <div class="content">
+              </div>
+            </div>`;
+            }
+        }
+        map.innerHTML = mapHtml;
+    }
+</script>
+
+</html>
