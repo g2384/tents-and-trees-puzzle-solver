@@ -12,7 +12,10 @@
         <input id="width" type="number" min="4" max="16" step="1" value="4" /> x
         <input id="length" type="number" min="4" max="16" step="1" value="4" />
         <button id="create_grid" class="btn" type="button" onclick="create();">Create</button>
-        <button id="create_grid" class="btn" type="button" onclick="solve();">Solve</button>
+        <button id="solve" class="btn" type="button" onclick="solve();">Solve</button>
+    </p>
+    <p class="demo">
+        <button type="button" class="btn" onclick="demo16_16();">Demo 16*16</button>
     </p>
     <p>1. Click <a onclick="create();">Create</a> to generate a map<br>2. Click the cell to place a tree</p>
     <div id="map"></div>
@@ -25,6 +28,59 @@
     var leftHints = [];
     var resultDiv = document.getElementById("result");
 
+    function demo16_16() {
+        document.getElementById("width").value = 16;
+        document.getElementById("length").value = 16;
+        create();
+        var trees = [
+            [0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0],
+            [0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0],
+            [1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+            [0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+            [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ];
+        var hints_top = [3,3,2,5,3,3,4,1,6,0,5,2,4,3,2,5];
+        var hints_left = [6,1,4,3,3,3,4,2,4,2,4,2,5,1,5,2];
+        setTopHints(hints_top);
+        setLeftHints(hints_left);
+        setTrees(trees);
+    }
+
+    function setTopHints(hints){
+        for(var i=0;i<hints.length;i++){
+            document.getElementById("top_hint_" + i).value = hints[i];
+        }
+    }
+
+    function setLeftHints(hints){
+        for(var i=0;i<hints.length;i++){
+            document.getElementById("left_hint_" + i).value = hints[i];
+        }
+    }
+
+    function setTrees(trees) {
+        var rowCount = trees.length;
+        var columnCount = trees[0].length;
+        for (var row = 0; row < rowCount; row++) {
+            for (var column = 0; column < columnCount; column++) {
+                if (trees[row][column] == 1) {
+                    setTree(row, column);
+                }
+            }
+        }
+    }
+
     function solve() {
         var rowCount = treeMap.length;
         var columnCount = treeMap[0].length;
@@ -36,7 +92,7 @@
         for (var row = 0; row < rowCount; row++) {
             leftHints[row] = parseInt(document.getElementById("left_hint_" + row).value);
         }
-        resultDiv.innerHTML = solve2(treeMap, topHints, leftHints, rowCount, columnCount);
+        resultDiv.innerHTML = solve2(treeMap, topHints, leftHints);
     }
 
     function setTree(i, j) { //i = horizontal, j = vertical

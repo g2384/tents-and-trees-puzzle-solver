@@ -1,21 +1,102 @@
-function solve2(treeMap, topHints, leftHints, rowCount, columnCount) {
+const const_cellType_notTested = 0,
+    const_cellType_tent = 1,
+    const_cellType_uncertain = 2,
+    const_cellType_grass = 3,
+    const_cellType_tree = 4;
+
+class Cell {
+    constructor() {
+        this._type = CellType.notTested;
+    }
+
+    get type() {
+        return this._type;
+    }
+
+    get isTree() {
+        return this._type == CellType.tree;
+    }
+
+    get isNotSet() {
+        return this._type == CellType.uncertain || this._type == CellType.notTested;
+    }
+
+    get isTent() {
+        return this._type == CellType.tent;
+    }
+
+    get isDefinitelyNotTent() {
+        return this._type == CellType.tree || this._type == CellType.grass;
+    }
+
+    setType(type) {
+        if (this.isNotSet) {
+            this._type = type;
+        } else {
+            throw new Error("Cannot change type from " + CellType.convertToString(this._type) + " to " + CellType.convertToString(type));
+        }
+    }
+}
+
+class CellType {
+    static get notTested() {
+        return const_cellType_notTested;
+    }
+
+    static get tent() {
+        return const_cellType_tent;
+    }
+
+    static get uncertain() {
+        return const_cellType_uncertain;
+    }
+
+    static get grass() {
+        return const_cellType_grass;
+    }
+
+    static get tree() {
+        return const_cellType_tree;
+    }
+
+    static convertToString(type) {
+        switch (type) {
+            case 0:
+                return "not-tested";
+            case 1:
+                return "tent";
+            case 2:
+                return "uncertain";
+            case 3:
+                return "grass";
+            case 4:
+                return "tree";
+        }
+    }
+}
+
+function solve2(treeMap, topHints, leftHints) {
+    var rowCount = leftHints.length;
+    var columnCount = topHints.length;
     var result = "";
     var tentMap = new Array(rowCount);
-    for (var i = 0; i < rowCount; i++) {
-        tentMap[i] = new Array(columnCount);
-        tentMap[i].fill(0); // 0 = not tested; 1 = tent; 2 = possible; 3 = no tent; 4 = tree
+    for (var row = 0; row < rowCount; row++) {
+        tentMap[row] = new Array(columnCount);
+        for (var column = 0; column < columnCount; column++) {
+            tentMap[row][column] = new Cell();
+        }
     }
     for (var row = 0; row < rowCount; row++) {
         for (var column = 0; column < columnCount; column++) {
-            if (treeMap[row][column]) {
-                tentMap[row][column] = 4;
+            if (treeMap[row][column] && tentMap[row][column].isNotSet) {
+                tentMap[row][column].setType(CellType.tree);
             }
         }
     }
     result += "input:<br>";
     result += stringify(tentMap);
     var isValid = false;
-    [isValid, errorMessage] = checkIsValid(tentMap, treeMap, topHints, leftHints);
+    [isValid, errorMessage] = checkIsValid(tentMap, topHints, leftHints);
     result += "is valid: " + isValid + "<br><br>";
     if (!isValid) {
         return result + "<br>error: " + errorMessage;
@@ -23,14 +104,14 @@ function solve2(treeMap, topHints, leftHints, rowCount, columnCount) {
     var stepCount = 1;
     var prevState = stringify(tentMap);
 
-    RemoveZeroColumnRow(tentMap, topHints, leftHints, rowCount, columnCount);
-    [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, treeMap, topHints, leftHints, prevState, result, stepCount, "ignore zero columns and rows");
+    RemoveZeroColumnRow(tentMap, topHints, leftHints);
+    [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "ignore zero columns and rows");
     if (canReturn) {
         return result;
     }
     while (isValid) {
         excludeLand(tentMap);
-        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, treeMap, topHints, leftHints, prevState, result, stepCount, "exclude open land (no adjacent tree)")
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude open land (no adjacent tree)")
         if (canReturn) {
             break;
         }
@@ -38,8 +119,17 @@ function solve2(treeMap, topHints, leftHints, rowCount, columnCount) {
             continue;
         }
 
-        PlaceExplicitTents(tentMap, topHints, leftHints, rowCount, columnCount);
-        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, treeMap, topHints, leftHints, prevState, result, stepCount, "fill in tents")
+        PlaceExplicitTents(tentMap, topHints, leftHints);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents")
+        if (canReturn) {
+            break;
+        }
+        if (canContinue) {
+            continue;
+        }
+
+        PlaceTentNextToIsolatedTree(tentMap);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents")
         if (canReturn) {
             break;
         }
@@ -53,14 +143,14 @@ function solve2(treeMap, topHints, leftHints, rowCount, columnCount) {
     return result;
 }
 
-function logStatus(tentMap, treeMap, topHints, leftHints, prevState, result, stepCount, description) {
-    [isValid, errorMessage] = checkIsValid(tentMap, treeMap, topHints, leftHints);
+function logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, description) {
+    [isValid, errorMessage] = checkIsValid(tentMap, topHints, leftHints);
     if (!isValid) {
         result += "<br>error: " + errorMessage;
         return [prevState, result, false, true];
     }
 
-    var isSolved = checkIsSolved(tentMap, treeMap, topHints, leftHints);
+    var isSolved = checkIsSolved(tentMap, topHints, leftHints);
     var currentState = stringify(tentMap);
     if (prevState != currentState) {
         result += "step " + stepCount + ": " + description + "<br>";
@@ -76,12 +166,55 @@ function logStatus(tentMap, treeMap, topHints, leftHints, prevState, result, ste
     return [prevState, result, stepCount, false, false];
 }
 
-function RemoveZeroColumnRow(tentMap, topHints, leftHints, rowCount, columnCount) {
+function PlaceTentNextToIsolatedTree(tentMap) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    for (var row = 0; row < rowCount; row++) {
+        for (var column = 0; column < columnCount; column++) {
+            if (tentMap[row][column].isTree) {
+                var coordinate = hasOnlyOneUnknownCell(tentMap, row, column);
+                if ((coordinate != undefined || coordinate != null) && tentMap[coordinate[0]][coordinate[1]].isNotSet) {
+                    tentMap[coordinate[0]][coordinate[1]].setType(CellType.tent);
+                }
+            }
+        }
+    }
+}
+
+function hasOnlyOneUnknownCell(tentMap, row, column) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    var isTopNotTent = row <= 0 || (row > 0 && tentMap[row - 1][column].isDefinitelyNotTent);
+    var isBottomNotTent = row >= rowCount - 1 || (row < rowCount - 1 && tentMap[row + 1][column].isDefinitelyNotTent);
+    var isleftNotTent = column <= 0 || (column > 0 && tentMap[row][column - 1].isDefinitelyNotTent);
+    var isRightNotTent = column >= columnCount - 1 || (column < columnCount - 1 && tentMap[row][column + 1].isDefinitelyNotTent);
+    var coordinate;
+    if (!isTopNotTent) {
+        coordinate = [row - 1, column];
+    }
+    if (!isBottomNotTent) {
+        coordinate = [row + 1, column];
+    }
+    if (!isleftNotTent) {
+        coordinate = [row, column - 1];
+    }
+    if (!isRightNotTent) {
+        coordinate = [row, column + 1];
+    }
+    if (isTopNotTent + isBottomNotTent + isleftNotTent + isRightNotTent == 3) {
+        return coordinate;
+    }
+    return null;
+}
+
+function RemoveZeroColumnRow(tentMap, topHints, leftHints) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
     for (var row = 0; row < rowCount; row++) {
         if (leftHints[row] == 0) {
             for (var column = 0; column < columnCount; column++) {
-                if (tentMap[row][column] != 4) {
-                    tentMap[row][column] = 3;
+                if (tentMap[row][column].isNotSet) {
+                    tentMap[row][column].setType(CellType.grass);
                 }
             }
         }
@@ -89,15 +222,18 @@ function RemoveZeroColumnRow(tentMap, topHints, leftHints, rowCount, columnCount
     for (var column = 0; column < columnCount; column++) {
         if (topHints[column] == 0) {
             for (var row = 0; row < rowCount; row++) {
-                if (tentMap[row][column] != 4) {
-                    tentMap[row][column] = 3;
+                if (tentMap[row][column].isNotSet) {
+                    tentMap[row][column].setType(CellType.grass);
                 }
             }
         }
     }
 }
 
-function PlaceExplicitTents(tentMap, topHints, leftHints, rowCount, columnCount) {
+// number of unknown cells = hint
+function PlaceExplicitTents(tentMap, topHints, leftHints) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
     var topUnknownTents = new Array(columnCount);
     topUnknownTents.fill(0);
     var leftUnknownTents = new Array(rowCount);
@@ -109,11 +245,11 @@ function PlaceExplicitTents(tentMap, topHints, leftHints, rowCount, columnCount)
     for (var row = 0; row < rowCount; row++) {
         for (var column = 0; column < columnCount; column++) {
             var tentStatus = tentMap[row][column];
-            if (tentStatus == 2 || tentStatus == 0) {
+            if (tentStatus.isNotSet) {
                 topUnknownTents[column]++;
                 leftUnknownTents[row]++;
             }
-            if (tentStatus == 1) {
+            if (tentStatus.isTent) {
                 topKnownTents[column]++;
                 leftKnownTents[row]++;
             }
@@ -123,8 +259,8 @@ function PlaceExplicitTents(tentMap, topHints, leftHints, rowCount, columnCount)
         if (leftKnownTents[row] + leftUnknownTents[row] == leftHints[row]) {
             for (var column = 0; column < columnCount; column++) {
                 var tentStatus = tentMap[row][column];
-                if (tentStatus == 2 || tentStatus == 0) {
-                    tentMap[row][column] = 1;
+                if (tentStatus.isNotSet) {
+                    tentMap[row][column].setType(CellType.tent);
                     topUnknownTents[column]--;
                     topKnownTents[column]++;
                 }
@@ -135,8 +271,8 @@ function PlaceExplicitTents(tentMap, topHints, leftHints, rowCount, columnCount)
         if (topKnownTents[column] + topUnknownTents[column] == topHints[column]) {
             for (var row = 0; row < rowCount; row++) {
                 var tentStatus = tentMap[row][column];
-                if (tentStatus == 2 || tentStatus == 0) {
-                    tentMap[row][column] = 1;
+                if (tentStatus.isNotSet) {
+                    tentMap[row][column].setType(CellType.tent);
                 }
             }
         }
@@ -148,6 +284,9 @@ function excludeLand(tentMap) {
     var columnCount = tentMap[0].length;
     for (var row = 0; row < rowCount; row++) {
         for (var column = 0; column < columnCount; column++) {
+            if (!tentMap[row][column].isNotSet) {
+                continue;
+            }
             var lastRow = row - 1;
             var lastCol = column - 1;
             var nextRow = row + 1;
@@ -155,21 +294,21 @@ function excludeLand(tentMap) {
             var noTopTree = true;
             var noLeftTree = true;
             if (lastRow >= 0) {
-                noTopTree = tentMap[lastRow][column] != 4;
+                noTopTree = !tentMap[lastRow][column].isTree;
             }
             if (lastCol >= 0) {
-                noLeftTree = tentMap[row][lastCol] != 4;
+                noLeftTree = !tentMap[row][lastCol].isTree;
             }
             var noBottomTree = true;
             var noRightTree = true;
             if (nextRow < rowCount) {
-                noBottomTree = tentMap[nextRow][column] != 4;
+                noBottomTree = !tentMap[nextRow][column].isTree;
             }
             if (nextCol < columnCount) {
-                noRightTree = tentMap[row][nextCol] != 4;
+                noRightTree = !tentMap[row][nextCol].isTree;
             }
             if (noTopTree && noLeftTree && noBottomTree && noRightTree) {
-                tentMap[row][column] = 3;
+                tentMap[row][column].setType(CellType.grass);
             }
         }
     }
@@ -177,23 +316,25 @@ function excludeLand(tentMap) {
 
 function stringify(tentMap) {
     var result = "";
-    for (var i = 0; i < tentMap.length; i++) {
-        for (var j = 0; j < tentMap[i].length; j++) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    for (var i = 0; i < rowCount; i++) {
+        for (var j = 0; j < columnCount; j++) {
             var text;
-            switch (tentMap[i][j]) {
-                case 0:
+            switch (tentMap[i][j].type) {
+                case CellType.notTested:
                     text = "_";
                     break;
-                case 1:
+                case CellType.tent:
                     text = "▲";
                     break;
-                case 2:
+                case CellType.uncertain:
                     text = "?";
                     break;
-                case 3:
+                case CellType.grass:
                     text = "□";
                     break;
-                case 4:
+                case CellType.tree:
                     text = "T";
                     break;
 
@@ -206,7 +347,7 @@ function stringify(tentMap) {
         result + "</div>";
 }
 
-function checkIsValid(tentMap, treeMap, topHints, leftHints) {
+function checkIsValid(tentMap, topHints, leftHints) {
     var rowCount = tentMap.length;
     var columnCount = tentMap[0].length;
     var rowTentCounts = new Array(columnCount);
@@ -214,14 +355,14 @@ function checkIsValid(tentMap, treeMap, topHints, leftHints) {
         rowTentCounts[column] = 0;
     }
     for (var row = 0; row < rowCount; row++) {
-        var colTreeCount = 0;
+        var colTentCount = 0;
         for (var column = 0; column < columnCount; column++) {
-            if (treeMap[row][column] == 1) {
-                colTreeCount++;
+            if (tentMap[row][column].isTent) {
+                colTentCount++;
                 rowTentCounts[column]++;
             }
         }
-        if (colTreeCount + leftHints[row] > columnCount) {
+        if (colTentCount + leftHints[row] > columnCount) {
             return [false, "row " + row + " is inavlid"];
         }
     }
@@ -238,7 +379,7 @@ function checkIsValid(tentMap, treeMap, topHints, leftHints) {
     return [true, ""];
 }
 
-function checkIsSolved(tentMap, treeMap, topHints, leftHints) {
+function checkIsSolved(tentMap, topHints, leftHints) {
     var rowCount = tentMap.length;
     var columnCount = tentMap[0].length;
     var rowTentCounts = new Array(columnCount);
@@ -248,7 +389,7 @@ function checkIsSolved(tentMap, treeMap, topHints, leftHints) {
     for (var row = 0; row < rowCount; row++) {
         var colTentCount = 0;
         for (var column = 0; column < columnCount; column++) {
-            if (tentMap[row][column] == 1) {
+            if (tentMap[row][column].isTent) {
                 colTentCount++;
                 rowTentCounts[column]++;
             }

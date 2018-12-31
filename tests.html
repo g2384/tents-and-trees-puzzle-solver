@@ -15,6 +15,7 @@
     function runTest() {
         test1();
         test2();
+        test3();
         integrationTest1();
     }
 
@@ -31,13 +32,12 @@
             [4, 3, 3],
             [1, 4, 3],
         ]
-        var rowCount = leftHints.length;
-        var columnCount = topHints.length;
+        var cellTentMap = convertToCells(tentMap);
         resultDiv.innerHTML += "test PlaceExplicitTents()<br>";
-        resultDiv.innerHTML += stringify(tentMap) + "<br>";
-        PlaceExplicitTents(tentMap, topHints, leftHints, rowCount, columnCount);
-        resultDiv.innerHTML += stringify(tentMap) + "<br>";
-        equal(tentMap, expected);
+        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
+        PlaceExplicitTents(cellTentMap, topHints, leftHints);
+        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
+        equal(cellTentMap, convertToCells(expected));
     }
 
     function test2() {
@@ -53,13 +53,47 @@
             [4, 0, 4],
             [3, 4, 2],
         ]
-        var rowCount = leftHints.length;
-        var columnCount = topHints.length;
+        var cellTentMap = convertToCells(tentMap);
         resultDiv.innerHTML += "test RemoveZeroColumnRow()<br>";
-        resultDiv.innerHTML += stringify(tentMap) + "<br>";
-        RemoveZeroColumnRow(tentMap, topHints, leftHints, rowCount, columnCount);
-        resultDiv.innerHTML += stringify(tentMap) + "<br>";
-        equal(tentMap, expected);
+        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
+        RemoveZeroColumnRow(cellTentMap, topHints, leftHints);
+        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
+        equal(cellTentMap, convertToCells(expected));
+    }
+
+    function test3() {
+        var tentMap = [
+            [4, 0, 3, 4],
+            [3, 0, 4, 0],
+            [2, 3, 1, 0],
+            [4, 3, 2, 4]
+        ];
+        var expected = [
+            [4, 1, 3, 4],
+            [3, 0, 4, 1],
+            [1, 3, 1, 0],
+            [4, 3, 2, 4]
+        ]
+        var cellTentMap = convertToCells(tentMap);
+        resultDiv.innerHTML += "test PlaceTentNextToIsolatedTree()<br>";
+        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
+        PlaceTentNextToIsolatedTree(cellTentMap);
+        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
+        equal(cellTentMap, convertToCells(expected));
+    }
+
+    function convertToCells(map) {
+        var rowCount = map.length;
+        var columnCount = map[0].length;
+        var cells = new Array(rowCount);
+        for (var i = 0; i < rowCount; i++) {
+            cells[i] = new Array(columnCount);
+            for (var j = 0; j < columnCount; j++) {
+                cells[i][j] = new Cell();
+                cells[i][j].setType(map[i][j]);
+            }
+        }
+        return cells;
     }
 
     function integrationTest1() {
@@ -71,11 +105,12 @@
         ];
         var topHints = [0, 1, 0, 1];
         var leftHints = [0, 0, 1, 1];
-        var expected = "input:<br><div class='text-map'>____<br>____<br>_TT_<br>____<br></div>is valid: true<br><br>step 1: ignore zero columns and rows<br><div class='text-map'>□□□□<br>□□□□<br>□TT_<br>□_□_<br></div>is solved: false<br><br>step 2: exclude open land (no adjacent tree)<br><div class='text-map'>□□□□<br>□□□□<br>□TT_<br>□_□□<br></div>is solved: false<br><br>step 3: fill in tents<br><div class='text-map'>□□□□<br>□□□□<br>□TT▲<br>□▲□□<br></div>is solved: true<br><br>";
+        var expected =
+            "input:<br><div class='text-map'>____<br>____<br>_TT_<br>____<br></div>is valid: true<br><br>step 1: ignore zero columns and rows<br><div class='text-map'>□□□□<br>□□□□<br>□TT_<br>□_□_<br></div>is solved: false<br><br>step 2: exclude open land (no adjacent tree)<br><div class='text-map'>□□□□<br>□□□□<br>□TT_<br>□_□□<br></div>is solved: false<br><br>step 3: fill in tents<br><div class='text-map'>□□□□<br>□□□□<br>□TT▲<br>□▲□□<br></div>is solved: true<br><br>";
         var rowCount = leftHints.length;
         var columnCount = topHints.length;
         resultDiv.innerHTML += "test solve2()<br>";
-        var actual = solve2(treeMap, topHints, leftHints, rowCount, columnCount);
+        var actual = solve2(treeMap, topHints, leftHints);
         stringEqual(actual, expected);
     }
 
@@ -83,8 +118,8 @@
         if (actual != expected) {
             resultDiv.innerHTML += "actual: " + actual + "<br>";
             resultDiv.innerHTML += "expected: " + expected + "<br>";
-            console.log(actual);
-            console.log(expected);
+            console.log("actual: " + actual);
+            console.log("expected: " + expected);
         } else {
             resultDiv.innerHTML += "pass<br>";
         }
@@ -95,7 +130,7 @@
         var areEqual = true;
         for (var row = 0; row < actual.length; row++) {
             for (var column = 0; column < actual[row].length; column++) {
-                if (actual[row][column] != expected[row][column]) {
+                if (actual[row][column].type != expected[row][column].type) {
                     areEqual = false;
                     resultDiv.innerHTML += "mismatch at [" + row + ", " + column + "]<br>";
                 }
