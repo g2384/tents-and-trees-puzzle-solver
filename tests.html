@@ -16,6 +16,11 @@
         test1();
         test2();
         test3();
+        test4();
+        test5();
+        test6();
+        test7();
+        test8();
         integrationTest1();
     }
 
@@ -33,11 +38,8 @@
             [1, 4, 3],
         ]
         var cellTentMap = convertToCells(tentMap);
-        resultDiv.innerHTML += "test PlaceExplicitTents()<br>";
-        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
-        PlaceExplicitTents(cellTentMap, topHints, leftHints);
-        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
-        equal(cellTentMap, convertToCells(expected));
+        runMapTest("test PlaceExplicitTents()<br>", () => PlaceExplicitTents(cellTentMap, topHints, leftHints),
+            cellTentMap, expected);
     }
 
     function test2() {
@@ -54,11 +56,8 @@
             [3, 4, 2],
         ]
         var cellTentMap = convertToCells(tentMap);
-        resultDiv.innerHTML += "test RemoveZeroColumnRow()<br>";
-        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
-        RemoveZeroColumnRow(cellTentMap, topHints, leftHints);
-        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
-        equal(cellTentMap, convertToCells(expected));
+        runMapTest("test RemoveZeroColumnRow()<br>", () => RemoveZeroColumnRow(cellTentMap, topHints, leftHints),
+            cellTentMap, expected);
     }
 
     function test3() {
@@ -75,11 +74,93 @@
             [4, 3, 2, 4]
         ]
         var cellTentMap = convertToCells(tentMap);
-        resultDiv.innerHTML += "test PlaceTentNextToIsolatedTree()<br>";
-        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
-        PlaceTentNextToIsolatedTree(cellTentMap);
-        resultDiv.innerHTML += stringify(cellTentMap) + "<br>";
-        equal(cellTentMap, convertToCells(expected));
+        runMapTest("test PlaceTentNextToIsolatedTree()<br>", () => PlaceTentNextToIsolatedTree(cellTentMap),
+            cellTentMap, expected);
+    }
+
+    function test4() {
+        var tentMap = [
+            [0, 4, 4, 0],
+            [3, 4, 0, 3],
+            [0, 0, 3, 3]
+        ];
+        var expected = [
+            [0, 4, 4, 0],
+            [3, 4, 3, 3],
+            [0, 0, 3, 3]
+        ]
+        var cellTentMap = convertToCells(tentMap);
+        runMapTest("test ExcludeImpossibleCell()<br>", () => ExcludeImpossibleCell(cellTentMap), cellTentMap, expected);
+    }
+
+    function test5() {
+        var tentMap = [
+            [0, 0, 0],
+            [0, 1, 0],
+            [0, 0, 0]
+        ];
+        var expected = [
+            [3, 3, 3],
+            [3, 1, 3],
+            [3, 3, 3]
+        ];
+        var cellTentMap = convertToCells(tentMap);
+        runMapTest("test SetGrassAroundTent()<br>", () => SetGrassAroundTent(cellTentMap), cellTentMap, expected);
+    }
+
+    function test6() {
+        var tentMap = [
+            [0, 4, 4, 0],
+            [3, 4, 1, 3],
+            [0, 0, 3, 3]
+        ];
+        var expected = [
+            [0, 4, 4, 3],
+            [3, 4, 1, 3],
+            [0, 3, 3, 3]
+        ];
+        var cellTentMap = convertToCells(tentMap);
+        runMapTest("test SetGrassAroundTent() 2<br>", () => SetGrassAroundTent(cellTentMap), cellTentMap, expected);
+    }
+
+    function test7() {
+        var tentMap = [
+            [0, 4, 4, 3],
+            [3, 4, 1, 3],
+            [0, 3, 3, 3]
+        ];
+        var expected = true;
+        var cellTentMap = convertToCells(tentMap);
+        resultDiv.innerHTML += "test HasNTentAroundTree()<br>";
+        var before = toHtml(cellTentMap);
+        var actual = HasNTentAroundTree(cellTentMap, 0, 2, 1);
+        var passed = stringEqual(actual, expected);
+        if (!passed) {
+            resultDiv.innerHTML += before + "<br>";
+        }
+    }
+
+    function test8() {
+        var tentMap = [
+            [0, 3, 3],
+            [4, 0, 3],
+            [4, 0, 0],
+            [0, 4, 0],
+            [3, 0, 3]
+        ];
+        var cellTentMap = convertToCells(tentMap);
+        runMapTest("test ExcludeImpossibleCell() 2<br>", () => ExcludeImpossibleCell(cellTentMap), cellTentMap, tentMap);
+    }
+
+    function runMapTest(description, action, map, expected) {
+        resultDiv.innerHTML += description;
+        var before = toHtml(map);
+        action();
+        var after = toHtml(map);
+        var passed = equal(map, convertToCells(expected));
+        if (!passed) {
+            resultDiv.innerHTML += before + "<br>" + after + "<br>"
+        }
     }
 
     function convertToCells(map) {
@@ -106,7 +187,7 @@
         var topHints = [0, 1, 0, 1];
         var leftHints = [0, 0, 1, 1];
         var expected =
-            "input:<br><div class='text-map'>____<br>____<br>_TT_<br>____<br></div>is valid: true<br><br>step 1: ignore zero columns and rows<br><div class='text-map'>□□□□<br>□□□□<br>□TT_<br>□_□_<br></div>is solved: false<br><br>step 2: exclude open land (no adjacent tree)<br><div class='text-map'>□□□□<br>□□□□<br>□TT_<br>□_□□<br></div>is solved: false<br><br>step 3: fill in tents<br><div class='text-map'>□□□□<br>□□□□<br>□TT▲<br>□▲□□<br></div>is solved: true<br><br>";
+            "input:<br><div class='text-map'>____<br>____<br>_TT_<br>____<br></div>is valid: true<br><br>step 1: ignore zero columns and rows<br><div class='text-map'>□□□□<br>□□□□<br>□TT_<br>□_□_<br></div>is solved: false<br><br>step 2: exclude open land (no adjacent tree)<br><div class='text-map'>□□□□<br>□□□□<br>□TT_<br>□_□□<br></div>is solved: false<br><br>step 3: fill in tents based on hints<br><div class='text-map'>□□□□<br>□□□□<br>□TT▲<br>□▲□□<br></div>is solved: true<br><br>";
         var rowCount = leftHints.length;
         var columnCount = topHints.length;
         resultDiv.innerHTML += "test solve2()<br>";
@@ -120,10 +201,12 @@
             resultDiv.innerHTML += "expected: " + expected + "<br>";
             console.log("actual: " + actual);
             console.log("expected: " + expected);
+            return false;
         } else {
             resultDiv.innerHTML += "pass<br>";
         }
         resultDiv.innerHTML += "<br>";
+        return true;
     }
 
     function equal(actual, expected) {
@@ -140,6 +223,7 @@
             resultDiv.innerHTML += "pass<br>";
         }
         resultDiv.innerHTML += "<br>";
+        return areEqual;
     }
 </script>
 

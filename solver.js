@@ -36,6 +36,12 @@ class Cell {
             throw new Error("Cannot change type from " + CellType.convertToString(this._type) + " to " + CellType.convertToString(type));
         }
     }
+
+    trySetType(type) {
+        if (this.isNotSet) {
+            this._type = type;
+        }
+    }
 }
 
 class CellType {
@@ -94,7 +100,7 @@ function solve2(treeMap, topHints, leftHints) {
         }
     }
     result += "input:<br>";
-    result += stringify(tentMap);
+    result += toHtml(tentMap);
     var isValid = false;
     [isValid, errorMessage] = checkIsValid(tentMap, topHints, leftHints);
     result += "is valid: " + isValid + "<br><br>";
@@ -102,7 +108,7 @@ function solve2(treeMap, topHints, leftHints) {
         return result + "<br>error: " + errorMessage;
     }
     var stepCount = 1;
-    var prevState = stringify(tentMap);
+    var prevState = toHtml(tentMap);
 
     RemoveZeroColumnRow(tentMap, topHints, leftHints);
     [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "ignore zero columns and rows");
@@ -120,7 +126,8 @@ function solve2(treeMap, topHints, leftHints) {
         }
 
         PlaceExplicitTents(tentMap, topHints, leftHints);
-        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents")
+        SetGrassAroundTent(tentMap);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents based on hints")
         if (canReturn) {
             break;
         }
@@ -129,7 +136,8 @@ function solve2(treeMap, topHints, leftHints) {
         }
 
         PlaceTentNextToIsolatedTree(tentMap);
-        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents")
+        SetGrassAroundTent(tentMap);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents next to isolated trees")
         if (canReturn) {
             break;
         }
@@ -137,6 +145,14 @@ function solve2(treeMap, topHints, leftHints) {
             continue;
         }
 
+        ExcludeImpossibleCell(tentMap);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude impossible cells")
+        if (canReturn) {
+            break;
+        }
+        if (canContinue) {
+            continue;
+        }
         break;
     }
 
@@ -151,7 +167,7 @@ function logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, d
     }
 
     var isSolved = checkIsSolved(tentMap, topHints, leftHints);
-    var currentState = stringify(tentMap);
+    var currentState = toHtml(tentMap);
     if (prevState != currentState) {
         result += "step " + stepCount + ": " + description + "<br>";
         result += currentState;
@@ -166,6 +182,157 @@ function logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, d
     return [prevState, result, stepCount, false, false];
 }
 
+function DeepCopyMap(tentMap) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    var newMap = new Array(rowCount);
+    for (var row = 0; row < rowCount; row++) {
+        newMap[row] = new Array(columnCount);
+        for (var column = 0; column < columnCount; column++) {
+            newMap[row][column] = new Cell();
+            newMap[row][column].setType(tentMap[row][column].type);
+        }
+    }
+    return newMap;
+}
+
+function ExcludeImpossibleCell(tentMap) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    for (var row = 0; row < rowCount; row++) {
+        for (var column = 0; column < columnCount; column++) {
+            if (tentMap[row][column].isNotSet) {
+                var newMap = DeepCopyMap(tentMap);
+                newMap[row][column].setType(CellType.tent);
+                SetGrassAroundTent(newMap);
+                var lastRow = row - 1;
+                var lastColumn = column - 1;
+                var nextRow = row + 1;
+                var nextColumn = column + 1;
+                var treeWithOneTentCount = 0;
+                if (lastRow >= 0) {
+                    treeWithOneTentCount += HasNTentAroundTree(newMap, lastRow, column, 0, [
+                        [row, column]
+                    ]) == true;
+                }
+                if (nextRow < rowCount) {
+                    treeWithOneTentCount += HasNTentAroundTree(newMap, nextRow, column, 0, [
+                        [row, column]
+                    ]) == true;
+                }
+                if (lastColumn >= 0) {
+                    treeWithOneTentCount += HasNTentAroundTree(newMap, row, lastColumn, 0, [
+                        [row, column]
+                    ]) == true;
+                    if (lastRow >= 0) {
+                        treeWithOneTentCount += HasNTentAroundTree(newMap, lastRow, lastColumn, 0, [
+                            [row, column]
+                        ]) == true;
+                    }
+                    if (nextRow < rowCount) {
+                        treeWithOneTentCount += HasNTentAroundTree(newMap, nextRow, lastColumn, 0, [
+                            [row, column]
+                        ]) == true;
+                    }
+                }
+                if (nextColumn < columnCount) {
+                    treeWithOneTentCount += HasNTentAroundTree(newMap, row, nextColumn, 0, [
+                        [row, column]
+                    ]) == true;
+                    if (lastRow >= 0) {
+                        treeWithOneTentCount += HasNTentAroundTree(newMap, lastRow, nextColumn, 0, [
+                            [row, column]
+                        ]) == true;
+                    }
+                    if (nextRow < rowCount) {
+                        treeWithOneTentCount += HasNTentAroundTree(newMap, nextRow, nextColumn, 0, [
+                            [row, column]
+                        ]) == true;
+                    }
+                }
+                if (treeWithOneTentCount > 1) { // an impossible cell, must be grass
+                    tentMap[row][column].setType(CellType.grass);
+                }
+            }
+        }
+    }
+}
+
+function ContainCoordinate(coordinates, row, column) {
+    for (var i = 0; i < coordinates.length; i++) {
+        if (coordinates[i][0] == row &&
+            coordinates[i][1] == column) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function HasNTentAroundTree(tentMap, row, column, n, excludedCoordinates = []) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    if (tentMap[row][column].isTree) {
+        var lastRow = row - 1;
+        var lastColumn = column - 1;
+        var nextRow = row + 1;
+        var nextColumn = column + 1;
+        var tentCount = 0;
+        if (lastRow >= 0 && !ContainCoordinate(excludedCoordinates, lastRow, column)) {
+            tentCount += tentMap[lastRow][column].isTent || tentMap[lastRow][column].isNotSet;
+        }
+        if (nextRow < rowCount && !ContainCoordinate(excludedCoordinates, nextRow, column)) {
+            tentCount += tentMap[nextRow][column].isTent || tentMap[nextRow][column].isNotSet;
+        }
+        if (lastColumn >= 0 && !ContainCoordinate(excludedCoordinates, row, lastColumn)) {
+            tentCount += tentMap[row][lastColumn].isTent || tentMap[row][lastColumn].isNotSet;
+        }
+        if (nextColumn < columnCount && !ContainCoordinate(excludedCoordinates, row, nextColumn)) {
+            tentCount += tentMap[row][nextColumn].isTent || tentMap[row][nextColumn].isNotSet;
+        }
+        return tentCount == n;
+    }
+    return null;
+}
+
+function SetGrassAroundTent(tentMap) {
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    for (var row = 0; row < rowCount; row++) {
+        for (var column = 0; column < columnCount; column++) {
+            if (tentMap[row][column].isTent) {
+                var lastRow = row - 1;
+                if (lastRow >= 0) {
+                    tentMap[lastRow][column].trySetType(CellType.grass);
+                }
+                var nextRow = row + 1;
+                if (nextRow < rowCount) {
+                    tentMap[nextRow][column].trySetType(CellType.grass);
+                }
+                var lastColumn = column - 1;
+                if (lastColumn >= 0) {
+                    tentMap[row][lastColumn].trySetType(CellType.grass);
+                    if (lastRow >= 0) {
+                        tentMap[lastRow][lastColumn].trySetType(CellType.grass);
+                    }
+                    if (nextRow < rowCount) {
+                        tentMap[nextRow][lastColumn].trySetType(CellType.grass);
+                    }
+                }
+                var nextColumn = column + 1;
+                if (nextColumn < columnCount) {
+                    tentMap[row][nextColumn].trySetType(CellType.grass);
+                    if (lastRow >= 0) {
+                        tentMap[lastRow][nextColumn].trySetType(CellType.grass);
+                    }
+                    if (nextRow < rowCount) {
+                        tentMap[nextRow][nextColumn].trySetType(CellType.grass);
+                    }
+                }
+            }
+        }
+    }
+}
+
 function PlaceTentNextToIsolatedTree(tentMap) {
     var rowCount = tentMap.length;
     var columnCount = tentMap[0].length;
@@ -173,8 +340,8 @@ function PlaceTentNextToIsolatedTree(tentMap) {
         for (var column = 0; column < columnCount; column++) {
             if (tentMap[row][column].isTree) {
                 var coordinate = hasOnlyOneUnknownCell(tentMap, row, column);
-                if ((coordinate != undefined || coordinate != null) && tentMap[coordinate[0]][coordinate[1]].isNotSet) {
-                    tentMap[coordinate[0]][coordinate[1]].setType(CellType.tent);
+                if ((coordinate != undefined || coordinate != null)) {
+                    tentMap[coordinate[0]][coordinate[1]].trySetType(CellType.tent);
                 }
             }
         }
@@ -213,18 +380,14 @@ function RemoveZeroColumnRow(tentMap, topHints, leftHints) {
     for (var row = 0; row < rowCount; row++) {
         if (leftHints[row] == 0) {
             for (var column = 0; column < columnCount; column++) {
-                if (tentMap[row][column].isNotSet) {
-                    tentMap[row][column].setType(CellType.grass);
-                }
+                tentMap[row][column].trySetType(CellType.grass);
             }
         }
     }
     for (var column = 0; column < columnCount; column++) {
         if (topHints[column] == 0) {
             for (var row = 0; row < rowCount; row++) {
-                if (tentMap[row][column].isNotSet) {
-                    tentMap[row][column].setType(CellType.grass);
-                }
+                tentMap[row][column].trySetType(CellType.grass);
             }
         }
     }
@@ -271,9 +434,7 @@ function PlaceExplicitTents(tentMap, topHints, leftHints) {
         if (topKnownTents[column] + topUnknownTents[column] == topHints[column]) {
             for (var row = 0; row < rowCount; row++) {
                 var tentStatus = tentMap[row][column];
-                if (tentStatus.isNotSet) {
-                    tentMap[row][column].setType(CellType.tent);
-                }
+                tentMap[row][column].trySetType(CellType.tent);
             }
         }
     }
@@ -288,24 +449,24 @@ function excludeLand(tentMap) {
                 continue;
             }
             var lastRow = row - 1;
-            var lastCol = column - 1;
+            var lastColumn = column - 1;
             var nextRow = row + 1;
-            var nextCol = column + 1;
+            var nextColumn = column + 1;
             var noTopTree = true;
             var noLeftTree = true;
             if (lastRow >= 0) {
                 noTopTree = !tentMap[lastRow][column].isTree;
             }
-            if (lastCol >= 0) {
-                noLeftTree = !tentMap[row][lastCol].isTree;
+            if (lastColumn >= 0) {
+                noLeftTree = !tentMap[row][lastColumn].isTree;
             }
             var noBottomTree = true;
             var noRightTree = true;
             if (nextRow < rowCount) {
                 noBottomTree = !tentMap[nextRow][column].isTree;
             }
-            if (nextCol < columnCount) {
-                noRightTree = !tentMap[row][nextCol].isTree;
+            if (nextColumn < columnCount) {
+                noRightTree = !tentMap[row][nextColumn].isTree;
             }
             if (noTopTree && noLeftTree && noBottomTree && noRightTree) {
                 tentMap[row][column].setType(CellType.grass);
@@ -341,8 +502,13 @@ function stringify(tentMap) {
             }
             result += text;
         }
-        result += "<br>"
+        result += "\n"
     }
+    return result;
+}
+
+function toHtml(tentMap) {
+    var result = stringify(tentMap).replace(/\n/g, "<br>");
     return "<div class='text-map'>" +
         result + "</div>";
 }
