@@ -21,6 +21,9 @@
         test6();
         test7();
         test8();
+        test9();
+        test10();
+        test11();
         integrationTest1();
     }
 
@@ -152,6 +155,53 @@
         runMapTest("test ExcludeImpossibleCell() 2<br>", () => ExcludeImpossibleCell(cellTentMap), cellTentMap, tentMap);
     }
 
+    function test9() {
+        var arr = [0, 1, 2, 4, 5, 7, 9];
+        resultDiv.innerHTML += "test GroupAdjacentNumbers()<br>";
+        var actual = GroupAdjacentNumbers(arr);
+        var expected = [
+            [0, 1, 2],
+            [4, 5],
+            [7],
+            [9]
+        ];
+        array2DEqual(actual, expected);
+    }
+
+    function test10() {
+        var arr = [
+            [0, 1, 2],
+            [4, 5],
+            [7],
+            [9]
+        ];
+        resultDiv.innerHTML += "test CountDiscontinuousCells()<br>";
+        var actual = CountDiscontinuousCells(arr);
+        stringEqual(actual, 5);
+    }
+
+    function test11() {
+        var tentMap = [
+            [0, 0, 4],
+            [3, 0, 0],
+            [0, 4, 3],
+            [0, 4, 0],
+            [0, 4, 3]
+        ];
+        var topHints = [3, 1, 2];
+        var leftHints = [1, 2, 1, 1, 1];
+        var expected = [
+            [1, 0, 4],
+            [3, 0, 1],
+            [1, 4, 3],
+            [0, 4, 1],
+            [1, 4, 3]
+        ]
+        var cellTentMap = convertToCells(tentMap);
+        runMapTest("test PlaceDeducedTents()<br>", () => PlaceDeducedTents(cellTentMap, topHints, leftHints),
+            cellTentMap, expected);
+    }
+
     function runMapTest(description, action, map, expected) {
         resultDiv.innerHTML += description;
         var before = toHtml(map);
@@ -207,6 +257,23 @@
         }
         resultDiv.innerHTML += "<br>";
         return true;
+    }
+
+    function array2DEqual(actual, expected) {
+        var areEqual = true;
+        for (var row = 0; row < actual.length; row++) {
+            for (var column = 0; column < actual[row].length; column++) {
+                if (actual[row][column] != expected[row][column]) {
+                    areEqual = false;
+                    resultDiv.innerHTML += "mismatch at [" + row + ", " + column + "]<br>";
+                }
+            }
+        }
+        if (areEqual) {
+            resultDiv.innerHTML += "pass<br>";
+        }
+        resultDiv.innerHTML += "<br>";
+        return areEqual;
     }
 
     function equal(actual, expected) {

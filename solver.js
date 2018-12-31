@@ -145,6 +145,16 @@ function solve2(treeMap, topHints, leftHints) {
             continue;
         }
 
+        PlaceDeducedTents(tentMap, topHints, leftHints);
+        SetGrassAroundTent(tentMap);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents based on hints and deduction")
+        if (canReturn) {
+            break;
+        }
+        if (canContinue) {
+            continue;
+        }
+
         ExcludeImpossibleCell(tentMap);
         [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude impossible cells")
         if (canReturn) {
@@ -163,7 +173,7 @@ function logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, d
     [isValid, errorMessage] = checkIsValid(tentMap, topHints, leftHints);
     if (!isValid) {
         result += "<br>error: " + errorMessage;
-        return [prevState, result, false, true];
+        return [prevState, result, stepCount, false, true];
     }
 
     var isSolved = checkIsSolved(tentMap, topHints, leftHints);
@@ -180,6 +190,86 @@ function logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, d
         return [prevState, result, stepCount, true, false];
     }
     return [prevState, result, stepCount, false, false];
+}
+
+function PlaceDeducedTents(tentMap, topHints, leftHints) { // [0, 3, 0, 0] and hint is 2, then 1st cell must be a tent
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    var columnEmptyCells = new Array(columnCount);
+    var rowEmptyCells = new Array(rowCount);
+    var localColumnEmptyCells = new Array(columnCount);
+    for (var column = 0; column < columnCount; column++) {
+        localColumnEmptyCells[column] = [];
+    }
+    for (var row = 0; row < rowCount; row++) {
+        var localRowEmptyCells = [];
+        for (var column = 0; column < columnCount; column++) {
+            var cell = tentMap[row][column];
+            if (cell.isNotSet || cell.isTent) {
+                localRowEmptyCells.push(column);
+                localColumnEmptyCells[column].push(row);
+            }
+        }
+        rowEmptyCells[row] = GroupAdjacentNumbers(localRowEmptyCells);
+    }
+    for (var column = 0; column < columnCount; column++) {
+        columnEmptyCells[column] = GroupAdjacentNumbers(localColumnEmptyCells[column]);
+    }
+    for (var row = 0; row < rowCount; row++) {
+        var rowEmptyCell = rowEmptyCells[row]
+        if (CountDiscontinuousCells(rowEmptyCell) == leftHints[row]) {
+            for (var i = 0; i < rowEmptyCell.length; i++) {
+                var cells = rowEmptyCell[i];
+                if ((cells.length & 1) == 1) { // is odd
+                    for (var j = 0; j < cells.length; j += 2) {
+                        if (!tentMap[row][cells[j]].isTent) {
+                            tentMap[row][cells[j]].setType(CellType.tent);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (var column = 0; column < columnCount; column++) {
+        var columnEmptyCell = columnEmptyCells[column]
+        if (CountDiscontinuousCells(columnEmptyCell) == topHints[column]) {
+            for (var i = 0; i < columnEmptyCell.length; i++) {
+                var cells = columnEmptyCell[i];
+                if ((cells.length & 1) == 1) { // is odd
+                    for (var j = 0; j < cells.length; j += 2) {
+                        if (!tentMap[cells[j]][column].isTent) {
+                            tentMap[cells[j]][column].setType(CellType.tent);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function CountDiscontinuousCells(arr) { // [[1, 2, 3], [5, 6], [7]] => 4
+    var count = 0;
+    for (var i = 0; i < arr.length; i++) {
+        count += (arr[i].length + 1) >> 1;
+    }
+    return count;
+}
+
+function GroupAdjacentNumbers(arr) {
+    var last = arr[0];
+    var result = [
+        [last]
+    ];
+    for (var i = 1; i < arr.length; i++) {
+        var current = arr[i];
+        if (current == last + 1) {
+            result[result.length - 1].push(current);
+        } else {
+            result.push([current]);
+        }
+        last = current;
+    }
+    return result;
 }
 
 function DeepCopyMap(tentMap) {
