@@ -155,6 +155,33 @@ function solve2(treeMap, topHints, leftHints) {
             continue;
         }
 
+        ExcludeFullyFilledLine(tentMap, topHints, leftHints);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude fully filled lines")
+        if (canReturn) {
+            break;
+        }
+        if (canContinue) {
+            continue;
+        }
+
+        ExcludeDiagonallyJointCell(tentMap, topHints, leftHints);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude diagonally joint cells")
+        if (canReturn) {
+            break;
+        }
+        if (canContinue) {
+            continue;
+        }
+
+        ExcludeCornerCell(tentMap);
+        [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude corner cell")
+        if (canReturn) {
+            break;
+        }
+        if (canContinue) {
+            continue;
+        }
+
         ExcludeImpossibleCell(tentMap);
         [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude impossible cells")
         if (canReturn) {
@@ -192,7 +219,197 @@ function logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, d
     return [prevState, result, stepCount, false, false];
 }
 
-function PlaceDeducedTents(tentMap, topHints, leftHints) { // [0, 3, 0, 0] and hint is 2, then 1st cell must be a tent
+function ExcludeFullyFilledLine(tentMap, topHints, leftHints) {
+    // (2) 1 T 1 0 <- the last cell must be grass
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    for (var row = 0; row < rowCount; row++) {
+        var notSetCount = 0;
+        var tentCount = 0;
+        for (var column = 0; column < columnCount; column++) {
+            var cell = tentMap[row][column];
+            if (cell.isTent) {
+                tentCount++;
+            } else if (cell.isNotSet) {
+                notSetCount++;
+            }
+        }
+        if (tentCount == leftHints[row] && notSetCount > 0) {
+            for (var column = 0; column < columnCount; column++) {
+                tentMap[row][column].trySetType(CellType.grass);
+            }
+        }
+    }
+    for (var column = 0; column < columnCount; column++) {
+        var notSetCount = 0;
+        var tentCount = 0;
+        for (var row = 0; row < rowCount; row++) {
+            var cell = tentMap[row][column];
+            if (cell.isTent) {
+                tentCount++;
+            } else if (cell.isNotSet) {
+                notSetCount++;
+            }
+        }
+        if (tentCount == topHints[column] && notSetCount > 0) {
+            for (var row = 0; row < rowCount; row++) {
+                tentMap[row][column].trySetType(CellType.grass);
+            }
+        }
+    }
+}
+
+function ExcludeDiagonallyJointCell(tentMap, topHints, leftHints) {
+    /*(2) 0 T 0 0
+     *    0 0 0 0 <- 2nd must be grass
+     */
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    [rowEmptyCells, columnEmptyCells] = GetEmptyCells(tentMap);
+    for (var row = 0; row < rowCount; row++) {
+        if (leftHints[row] == 0) {
+            continue;
+        }
+        var lastRow = row - 1;
+        var nextRow = row + 1;
+        var rowEmptyCell = rowEmptyCells[row];
+        if (CountDiscontinuousCells(rowEmptyCell) == leftHints[row] + 1) {
+            var lastCells = rowEmptyCell[0];
+            for (var i = 1; i < rowEmptyCell.length; i++) {
+                var cells = rowEmptyCell[i];
+                if (lastCells.length == 1 && cells.length == 1 && cells[0] == lastCells[0] + 2) {
+                    if (tentMap[row][cells[0]].isNotSet && tentMap[row][lastCells[0]].isNotSet) {
+                        if (lastRow >= 0) {
+                            tentMap[lastRow][lastCells[0] + 1].trySetType(CellType.grass);
+                        }
+                        if (nextRow < rowCount) {
+                            tentMap[nextRow][lastCells[0] + 1].trySetType(CellType.grass);
+                        }
+                    }
+                } else if (lastCells.length == 1 && cells.length == 3 && cells[0] == lastCells[0] + 2) {
+                    if (tentMap[row][cells[0]].isNotSet &&
+                        tentMap[row][cells[1]].isNotSet &&
+                        tentMap[row][cells[2]].isNotSet &&
+                        tentMap[row][lastCells[0]].isNotSet) {
+                        if (lastRow >= 0) {
+                            tentMap[lastRow][lastCells[0] + 1].trySetType(CellType.grass);
+                        }
+                        if (nextRow < rowCount) {
+                            tentMap[nextRow][lastCells[0] + 1].trySetType(CellType.grass);
+                        }
+                    }
+                } else if (lastCells.length == 3 && cells.length == 1 && cells[0] == lastCells[2] + 2) {
+                    if (tentMap[row][cells[0]].isNotSet &&
+                        tentMap[row][lastCells[1]].isNotSet &&
+                        tentMap[row][lastCells[2]].isNotSet &&
+                        tentMap[row][lastCells[0]].isNotSet) {
+                        if (lastRow >= 0) {
+                            tentMap[lastRow][cells[0] - 1].trySetType(CellType.grass);
+                        }
+                        if (nextRow < rowCount) {
+                            tentMap[nextRow][cells[0] - 1].trySetType(CellType.grass);
+                        }
+                    }
+                }
+                lastCells = cells;
+            }
+        }
+    }
+    for (var column = 0; column < columnCount; column++) {
+        if (topHints[column] == 0) {
+            continue;
+        }
+        var lastColumn = column - 1;
+        var nextColumn = column + 1;
+        var columnEmptyCell = columnEmptyCells[column];
+        if (CountDiscontinuousCells(columnEmptyCell) == topHints[column] + 1) {
+            var lastCells = columnEmptyCell[0]
+            for (var i = 1; i < columnEmptyCell.length; i++) {
+                var cells = columnEmptyCell[i];
+                if (lastCells.length == 1 && cells.length == 1 && cells[0] == lastCells[0] + 2) {
+                    if (tentMap[cells[0]][column].isNotSet && tentMap[lastCells[0]][column].isNotSet) {
+                        if (lastColumn >= 0) {
+                            tentMap[lastCells[0] + 1][lastColumn].trySetType(CellType.grass);
+                        }
+                        if (nextColumn < columnCount) {
+                            tentMap[lastCells[0] + 1][nextColumn].trySetType(CellType.grass);
+                        }
+                    }
+                } else if (lastCells.length == 1 && cells.length == 3 && cells[0] == lastCells[0] + 2) {
+                    if (tentMap[cells[0]][column].isNotSet &&
+                        tentMap[cells[1]][column].isNotSet &&
+                        tentMap[cells[2]][column].isNotSet &&
+                        tentMap[lastCells[0]][column].isNotSet) {
+                        if (lastRow >= 0) {
+                            tentMap[lastCells[0] + 1][lastColumn].trySetType(CellType.grass);
+                        }
+                        if (nextRow < rowCount) {
+                            tentMap[lastCells[0] + 1][nextColumn].trySetType(CellType.grass);
+                        }
+                    }
+                } else if (lastCells.length == 3 && cells.length == 1 && cells[0] == lastCells[2] + 2) {
+                    if (tentMap[cells[0]][column].isNotSet &&
+                        tentMap[lastCells[1]][column].isNotSet &&
+                        tentMap[lastCells[2]][column].isNotSet &&
+                        tentMap[lastCells[0]][column].isNotSet) {
+                        if (lastRow >= 0) {
+                            tentMap[cells[0] - 1][lastColumn].trySetType(CellType.grass);
+                        }
+                        if (nextRow < rowCount) {
+                            tentMap[cells[0] - 1][nextColumn].trySetType(CellType.grass);
+                        }
+                    }
+                }
+                lastCells = cells;
+            }
+        }
+    }
+}
+
+function ExcludeCornerCell(tentMap) {
+    /*T 0
+     *0 0 <- impossible
+     */
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    for (var row = 0; row < rowCount; row++) {
+        for (var column = 0; column < columnCount; column++) {
+            if (tentMap[row][column].isTree) {
+                var lastRow = row - 1;
+                var lastColumn = column - 1;
+                var nextRow = row + 1;
+                var nextColumn = column + 1;
+                var isTopNotSet = false,
+                    isBottomNotSet = false,
+                    isLeftNotSet = false,
+                    isRightNotSet = false;
+                if (lastRow >= 0) {
+                    isTopNotSet = tentMap[lastRow][column].isNotSet;
+                }
+                if (nextRow < rowCount) {
+                    isBottomNotSet = tentMap[nextRow][column].isNotSet;
+                }
+                if (lastColumn >= 0) {
+                    isLeftNotSet = tentMap[row][lastColumn].isNotSet;
+                }
+                if (nextColumn < columnCount) {
+                    isRightNotSet = tentMap[row][nextColumn].isNotSet;
+                }
+                if (isTopNotSet && isLeftNotSet && !isBottomNotSet && !isRightNotSet) {
+                    tentMap[lastRow][lastColumn].trySetType(CellType.grass);
+                } else if (isTopNotSet && !isLeftNotSet && !isBottomNotSet && isRightNotSet) {
+                    tentMap[lastRow][nextColumn].trySetType(CellType.grass);
+                } else if (!isTopNotSet && !isLeftNotSet && isBottomNotSet && isRightNotSet) {
+                    tentMap[nextRow][nextColumn].trySetType(CellType.grass);
+                } else if (!isTopNotSet && isLeftNotSet && isBottomNotSet && !isRightNotSet) {
+                    tentMap[nextRow][lastColumn].trySetType(CellType.grass);
+                }
+            }
+        }
+    }
+}
+
+function GetEmptyCells(tentMap) {
     var rowCount = tentMap.length;
     var columnCount = tentMap[0].length;
     var columnEmptyCells = new Array(columnCount);
@@ -215,6 +432,13 @@ function PlaceDeducedTents(tentMap, topHints, leftHints) { // [0, 3, 0, 0] and h
     for (var column = 0; column < columnCount; column++) {
         columnEmptyCells[column] = GroupAdjacentNumbers(localColumnEmptyCells[column]);
     }
+    return [rowEmptyCells, columnEmptyCells];
+}
+
+function PlaceDeducedTents(tentMap, topHints, leftHints) { // [0, 3, 0, 0] and hint is 2, then 1st cell must be a tent
+    var rowCount = tentMap.length;
+    var columnCount = tentMap[0].length;
+    [rowEmptyCells, columnEmptyCells] = GetEmptyCells(tentMap);
     for (var row = 0; row < rowCount; row++) {
         var rowEmptyCell = rowEmptyCells[row]
         if (CountDiscontinuousCells(rowEmptyCell) == leftHints[row]) {
