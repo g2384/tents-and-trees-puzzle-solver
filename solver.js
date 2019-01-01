@@ -1,3 +1,28 @@
+/* TODO
+ * - elimiate associated trees and tents to simplify map;
+ * - elimiate the following cells:
+ *  case 1:
+ *   (1) 0 0 0 T
+ *       T 0 T 0 <- the 2nd cell must be grass
+ *  case 2:
+ *   (2) 0 0 0 T 0
+ *       T 0 T 0 0 <- the 2nd cell must be grass
+ *  case 3:
+ *   (3) 0 T 0 0 T 0
+ *       3 0 3 3 0 3 <- the 2nd and 5th cell must be grass
+ *  case 4:
+ *   (3) 0 T 0 0 0 0 0
+ *       3 0 3 3 3 0 3 <- the 2nd and 5th cell must be grass
+ *  case 5:
+ *   (1) 0 0
+ *       0 3 <- the 1st cell must be grass
+ *  case 6:
+ *   (2) 0 3 0 0
+ *       3 3 0 3 <- the 3rd cell must be grass
+ * - solve2() should return in json format;
+ * - add more unit tests; use a proper unit test library;
+ */
+
 const const_cellType_notTested = 0,
     const_cellType_tent = 1,
     const_cellType_uncertain = 2,
