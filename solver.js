@@ -2,23 +2,11 @@
  * - elimiate associated trees and tents to simplify map;
  * - elimiate the following cells:
  *  case 1:
- *   (1) 0 0 0 T
- *       T 0 T 0 <- the 2nd cell must be grass
- *  case 2:
- *   (2) 0 0 0 T 0
- *       T 0 T 0 0 <- the 2nd cell must be grass
- *  case 3:
  *   (3) 0 T 0 0 T 0
  *       3 0 3 3 0 3 <- the 2nd and 5th cell must be grass
- *  case 4:
+ *  case 2:
  *   (3) 0 T 0 0 0 0 0
  *       3 0 3 3 3 0 3 <- the 2nd and 5th cell must be grass
- *  case 5:
- *   (1) 0 0
- *       0 3 <- the 1st cell must be grass
- *  case 6:
- *   (2) 0 3 0 0
- *       3 3 0 3 <- the 3rd cell must be grass
  * - solve2() should return in json format;
  * - add more unit tests; use a proper unit test library;
  */
@@ -284,6 +272,101 @@ function ExcludeFullyFilledLine(tentMap, topHints, leftHints) {
     }
 }
 
+function ExcludeAlignedCellsInLine(emptyCell, row, rowCount, isNotSet, trySetType) {
+    var lastRow = row - 1;
+    var nextRow = row + 1;
+    for (var i = 0; i < emptyCell.length; i++) {
+        var cells = emptyCell[i]
+        if (cells.length == 2 && isNotSet(row, cells[0]) && isNotSet(row, cells[1])) {
+            /*(1) 0 0
+             *    0 T <- 1st
+             */
+            if (lastRow >= 0) {
+                trySetType(lastRow, cells[0]);
+                trySetType(lastRow, cells[1]);
+            } else if (nextRow < rowCount) {
+                trySetType(nextRow, cells[0]);
+                trySetType(nextRow, cells[1]);
+            }
+        }
+    }
+}
+
+function test(emptyCell, row, rowCount, isNotSet, trySetType) {
+    var lastRow = row - 1;
+    var nextRow = row + 1;
+    var lastCells = emptyCell[0];
+    for (var i = 1; i < emptyCell.length; i++) {
+        var cells = emptyCell[i];
+        if (lastCells.length == 1 && cells.length == 1 && cells[0] == lastCells[0] + 2) {
+            /*(1) 0 T 0
+             *    0 0 0 <- 2nd
+             */
+            if (isNotSet(row, cells[0]) && isNotSet(row, lastCells[0])) {
+                if (lastRow >= 0) {
+                    trySetType(lastRow, lastCells[0] + 1);
+                }
+                if (nextRow < rowCount) {
+                    trySetType(nextRow, lastCells[0] + 1);
+                }
+            }
+        } else if (lastCells.length == 1 && cells.length == 3 && cells[0] == lastCells[0] + 2) {
+            /*(2) 0 T 0 0 0
+             *    T 0 T T T <- 2nd
+             */
+            if (isNotSet(row, cells[0]) &&
+                isNotSet(row, cells[1]) &&
+                isNotSet(row, cells[2]) &&
+                isNotSet(row, lastCells[0])) {
+                if (lastRow >= 0) {
+                    trySetType(lastRow, lastCells[0] + 1);
+                }
+                if (nextRow < rowCount) {
+                    trySetType(nextRow, lastCells[0] + 1);
+                }
+            }
+        } else if (lastCells.length == 3 && cells.length == 1 && cells[0] == lastCells[2] + 2) {
+            /*(2) 0 0 0 T 0
+             *    T T T 0 T <- 4th
+             */
+            if (isNotSet(row, cells[0]) &&
+                isNotSet(row, lastCells[1]) &&
+                isNotSet(row, lastCells[2]) &&
+                isNotSet(row, lastCells[0])) {
+                if (lastRow >= 0) {
+                    trySetType(lastRow, cells[0] - 1);
+                }
+                if (nextRow < rowCount) {
+                    trySetType(nextRow, cells[0] - 1);
+                }
+            }
+        } else if (cells.length == 3 &&
+            isNotSet(row, cells[0]) &&
+            isNotSet(row, cells[1]) &&
+            isNotSet(row, cells[2])) {
+            /*(1) 0 0 0
+             *    T 0 T <- 2nd
+             */
+            if (lastRow >= 0) {
+                trySetType(lastRow, cells[1]);
+            } else if (nextRow < rowCount) {
+                trySetType(nextRow, cells[1]);
+            }
+        }
+        lastCells = cells;
+    }
+}
+
+function ExcludeDiagonallyJointCellsInLine(emptyCells, hints, row, rowCount, isNotSet, trySetType) {
+    var emptyCell = emptyCells[row];
+    var discontinuousCellsCount = CountDiscontinuousCells(emptyCell);
+    if (discontinuousCellsCount == hints[row]) {
+        ExcludeAlignedCellsInLine(emptyCell, row, rowCount, isNotSet, trySetType);
+    } else if (discontinuousCellsCount == hints[row] + 1) {
+        test(emptyCell, row, rowCount, isNotSet, trySetType);
+    }
+}
+
 function ExcludeDiagonallyJointCell(tentMap, topHints, leftHints) {
     /*(2) 0 T 0 0
      *    0 0 0 0 <- 2nd must be grass
@@ -295,99 +378,18 @@ function ExcludeDiagonallyJointCell(tentMap, topHints, leftHints) {
         if (leftHints[row] == 0) {
             continue;
         }
-        var lastRow = row - 1;
-        var nextRow = row + 1;
-        var rowEmptyCell = rowEmptyCells[row];
-        if (CountDiscontinuousCells(rowEmptyCell) == leftHints[row] + 1) {
-            var lastCells = rowEmptyCell[0];
-            for (var i = 1; i < rowEmptyCell.length; i++) {
-                var cells = rowEmptyCell[i];
-                if (lastCells.length == 1 && cells.length == 1 && cells[0] == lastCells[0] + 2) {
-                    if (tentMap[row][cells[0]].isNotSet && tentMap[row][lastCells[0]].isNotSet) {
-                        if (lastRow >= 0) {
-                            tentMap[lastRow][lastCells[0] + 1].trySetType(CellType.grass);
-                        }
-                        if (nextRow < rowCount) {
-                            tentMap[nextRow][lastCells[0] + 1].trySetType(CellType.grass);
-                        }
-                    }
-                } else if (lastCells.length == 1 && cells.length == 3 && cells[0] == lastCells[0] + 2) {
-                    if (tentMap[row][cells[0]].isNotSet &&
-                        tentMap[row][cells[1]].isNotSet &&
-                        tentMap[row][cells[2]].isNotSet &&
-                        tentMap[row][lastCells[0]].isNotSet) {
-                        if (lastRow >= 0) {
-                            tentMap[lastRow][lastCells[0] + 1].trySetType(CellType.grass);
-                        }
-                        if (nextRow < rowCount) {
-                            tentMap[nextRow][lastCells[0] + 1].trySetType(CellType.grass);
-                        }
-                    }
-                } else if (lastCells.length == 3 && cells.length == 1 && cells[0] == lastCells[2] + 2) {
-                    if (tentMap[row][cells[0]].isNotSet &&
-                        tentMap[row][lastCells[1]].isNotSet &&
-                        tentMap[row][lastCells[2]].isNotSet &&
-                        tentMap[row][lastCells[0]].isNotSet) {
-                        if (lastRow >= 0) {
-                            tentMap[lastRow][cells[0] - 1].trySetType(CellType.grass);
-                        }
-                        if (nextRow < rowCount) {
-                            tentMap[nextRow][cells[0] - 1].trySetType(CellType.grass);
-                        }
-                    }
-                }
-                lastCells = cells;
-            }
-        }
+        ExcludeDiagonallyJointCellsInLine(rowEmptyCells, leftHints, row, rowCount, (r, c) => {
+            return tentMap[r][c].isNotSet
+        }, (r, c) => tentMap[r][c].trySetType(CellType.grass));
+
     }
     for (var column = 0; column < columnCount; column++) {
         if (topHints[column] == 0) {
             continue;
         }
-        var lastColumn = column - 1;
-        var nextColumn = column + 1;
-        var columnEmptyCell = columnEmptyCells[column];
-        if (CountDiscontinuousCells(columnEmptyCell) == topHints[column] + 1) {
-            var lastCells = columnEmptyCell[0]
-            for (var i = 1; i < columnEmptyCell.length; i++) {
-                var cells = columnEmptyCell[i];
-                if (lastCells.length == 1 && cells.length == 1 && cells[0] == lastCells[0] + 2) {
-                    if (tentMap[cells[0]][column].isNotSet && tentMap[lastCells[0]][column].isNotSet) {
-                        if (lastColumn >= 0) {
-                            tentMap[lastCells[0] + 1][lastColumn].trySetType(CellType.grass);
-                        }
-                        if (nextColumn < columnCount) {
-                            tentMap[lastCells[0] + 1][nextColumn].trySetType(CellType.grass);
-                        }
-                    }
-                } else if (lastCells.length == 1 && cells.length == 3 && cells[0] == lastCells[0] + 2) {
-                    if (tentMap[cells[0]][column].isNotSet &&
-                        tentMap[cells[1]][column].isNotSet &&
-                        tentMap[cells[2]][column].isNotSet &&
-                        tentMap[lastCells[0]][column].isNotSet) {
-                        if (lastRow >= 0) {
-                            tentMap[lastCells[0] + 1][lastColumn].trySetType(CellType.grass);
-                        }
-                        if (nextRow < rowCount) {
-                            tentMap[lastCells[0] + 1][nextColumn].trySetType(CellType.grass);
-                        }
-                    }
-                } else if (lastCells.length == 3 && cells.length == 1 && cells[0] == lastCells[2] + 2) {
-                    if (tentMap[cells[0]][column].isNotSet &&
-                        tentMap[lastCells[1]][column].isNotSet &&
-                        tentMap[lastCells[2]][column].isNotSet &&
-                        tentMap[lastCells[0]][column].isNotSet) {
-                        if (lastRow >= 0) {
-                            tentMap[cells[0] - 1][lastColumn].trySetType(CellType.grass);
-                        }
-                        if (nextRow < rowCount) {
-                            tentMap[cells[0] - 1][nextColumn].trySetType(CellType.grass);
-                        }
-                    }
-                }
-                lastCells = cells;
-            }
-        }
+        ExcludeDiagonallyJointCellsInLine(columnEmptyCells, topHints, column, columnCount, (c, r) => {
+            return tentMap[r][c].isNotSet
+        }, (c, r) => tentMap[r][c].trySetType(CellType.grass));
     }
 }
 
