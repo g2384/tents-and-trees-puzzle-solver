@@ -220,7 +220,7 @@
         for (var i = 0; i < rowCount; i++) {
             cells[i] = new Array(columnCount);
             for (var j = 0; j < columnCount; j++) {
-                cells[i][j] = new Cell();
+                cells[i][j] = new Cell(i, j);
                 cells[i][j].setType(map[i][j]);
             }
         }

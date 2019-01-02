@@ -1,5 +1,5 @@
 /* TODO
- * - elimiate associated trees and tents to simplify map;
+ * - use recursive function to speed up RemoveAssociatedTreesAndTents();
  * - elimiate the following cells:
  *  case 1:
  *   (3) 0 T 0 0 T 0
@@ -18,8 +18,18 @@ const const_cellType_notTested = 0,
     const_cellType_tree = 4;
 
 class Cell {
-    constructor() {
+    constructor(row, column) {
         this._type = CellType.notTested;
+        this._row = row;
+        this._column = column;
+    }
+
+    get row() {
+        return this._row;
+    }
+
+    get column() {
+        return this._column;
     }
 
     get type() {
@@ -28,6 +38,10 @@ class Cell {
 
     get isTree() {
         return this._type == CellType.tree;
+    }
+
+    get isSet() {
+        return this._type == CellType.tree || this._type == CellType.grass || this._type == CellType.tent;
     }
 
     get isNotSet() {
@@ -48,6 +62,10 @@ class Cell {
         } else {
             throw new Error("Cannot change type from " + CellType.convertToString(this._type) + " to " + CellType.convertToString(type));
         }
+    }
+
+    forceSetType(type) {
+        this._type = type;
     }
 
     trySetType(type) {
@@ -104,7 +122,7 @@ function solve2(treeMap, topHints, leftHints) {
     for (var row = 0; row < rowCount; row++) {
         tentMap[row] = new Array(columnCount);
         for (var column = 0; column < columnCount; column++) {
-            tentMap[row][column] = new Cell();
+            tentMap[row][column] = new Cell(row, column);
         }
     }
     for (var row = 0; row < rowCount; row++) {
@@ -130,9 +148,20 @@ function solve2(treeMap, topHints, leftHints) {
     if (canReturn) {
         return result;
     }
+
+    var simplifiedMap = DeepCopyMap(tentMap);
+    var simplifiedTopHints = DeepCopyArray(topHints);
+    var simplifiedLeftHints = DeepCopyArray(leftHints);
     while (isValid) {
-        var isChanged = excludeLand(tentMap);
+        CopySetCells(simplifiedMap, tentMap);
+        var isRemoved = RemoveAssociatedTreesAndTents(simplifiedMap, simplifiedTopHints, simplifiedLeftHints);
+        if (isRemoved) {
+            result += "<br>Remove associated trees and tents.</br>"
+        }
+
+        var isChanged = excludeLand(simplifiedMap);
         if (isChanged) {
+            CopySetCells(tentMap, simplifiedMap);
             [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude open land (no adjacent tree)")
             if (canReturn) {
                 break;
@@ -142,8 +171,9 @@ function solve2(treeMap, topHints, leftHints) {
             }
         }
 
-        isChanged = PlaceExplicitTents(tentMap, topHints, leftHints);
+        isChanged = PlaceExplicitTents(simplifiedMap, simplifiedTopHints, simplifiedLeftHints);
         if (isChanged) {
+            CopySetCells(tentMap, simplifiedMap);
             SetGrassAroundTent(tentMap);
             [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents based on hints")
             if (canReturn) {
@@ -154,8 +184,9 @@ function solve2(treeMap, topHints, leftHints) {
             }
         }
 
-        isChanged = PlaceTentNextToIsolatedTree(tentMap);
+        isChanged = PlaceTentNextToIsolatedTree(simplifiedMap);
         if (isChanged) {
+            CopySetCells(tentMap, simplifiedMap);
             SetGrassAroundTent(tentMap);
             [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents next to isolated trees")
             if (canReturn) {
@@ -166,8 +197,9 @@ function solve2(treeMap, topHints, leftHints) {
             }
         }
 
-        isChanged = PlaceDeducedTents(tentMap, topHints, leftHints);
+        isChanged = PlaceDeducedTents(simplifiedMap, simplifiedTopHints, simplifiedLeftHints);
         if (isChanged) {
+            CopySetCells(tentMap, simplifiedMap);
             SetGrassAroundTent(tentMap);
             [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents based on hints and deduction")
             if (canReturn) {
@@ -178,8 +210,9 @@ function solve2(treeMap, topHints, leftHints) {
             }
         }
 
-        isChanged = ExcludeFullyFilledLine(tentMap, topHints, leftHints);
+        isChanged = ExcludeFullyFilledLine(simplifiedMap, simplifiedTopHints, simplifiedLeftHints);
         if (isChanged) {
+            CopySetCells(tentMap, simplifiedMap);
             [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude fully filled lines")
             if (canReturn) {
                 break;
@@ -189,8 +222,9 @@ function solve2(treeMap, topHints, leftHints) {
             }
         }
 
-        isChanged = ExcludeDiagonallyJointCell(tentMap, topHints, leftHints);
+        isChanged = ExcludeDiagonallyJointCell(simplifiedMap, simplifiedTopHints, simplifiedLeftHints);
         if (isChanged) {
+            CopySetCells(tentMap, simplifiedMap);
             [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude diagonally joint cells")
             if (canReturn) {
                 break;
@@ -200,8 +234,9 @@ function solve2(treeMap, topHints, leftHints) {
             }
         }
 
-        isChanged = ExcludeCornerCell(tentMap);
+        isChanged = ExcludeCornerCell(simplifiedMap);
         if (isChanged) {
+            CopySetCells(tentMap, simplifiedMap);
             [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude corner cell")
             if (canReturn) {
                 break;
@@ -211,8 +246,9 @@ function solve2(treeMap, topHints, leftHints) {
             }
         }
 
-        isChanged = ExcludeImpossibleCell(tentMap);
+        isChanged = ExcludeImpossibleCell(simplifiedMap);
         if (isChanged) {
+            CopySetCells(tentMap, simplifiedMap);
             [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude impossible cells")
             if (canReturn) {
                 break;
@@ -225,6 +261,108 @@ function solve2(treeMap, topHints, leftHints) {
     }
 
     return result;
+}
+
+function DeepCopyArray(arr) {
+    var newArr = new Array(arr.length);
+    for (var i = 0; i < arr.length; i++) {
+        newArr[i] = arr[i];
+    }
+    return newArr;
+}
+
+function CopySetCells(map, copyFrom) {
+    var rowCount = map.length;
+    var columnCount = map[0].length;
+    for (var row = 0; row < rowCount; row++) {
+        for (var column = 0; column < columnCount; column++) {
+            var fromCell = copyFrom[row][column];
+            var cell = map[row][column];
+            if (cell.isNotSet && fromCell.isSet) {
+                cell.setType(fromCell.type);
+            }
+        }
+    }
+}
+
+function TryIsTentOrNotSet(cell) {
+    if (cell != undefined && cell != null) {
+        return cell.isTent || cell.isNotSet;
+    }
+    return false;
+}
+
+function TryIsTree(cell) {
+    if (cell != undefined && cell != null) {
+        return cell.isTree;
+    }
+    return false;
+}
+
+function GetCellsAround(map, row, lastRow, nextRow, column, rowCount, columnCount) {
+    var lastColumn = column - 1;
+    var nextColumn = column + 1;
+    var topCell, leftCell, rightCell, bottomCell;
+    if (lastRow >= 0) {
+        topCell = map[lastRow][column];
+    }
+    if (nextRow < rowCount) {
+        bottomCell = map[nextRow][column];
+    }
+    if (lastColumn >= 0) {
+        leftCell = map[row][lastColumn];
+    }
+    if (nextColumn < columnCount) {
+        rightCell = map[row][nextColumn];
+    }
+    return [topCell, leftCell, rightCell, bottomCell];
+}
+
+function RemoveAssociatedTreesAndTents(map, topHints, leftHints) {
+    var isRemoved = false;
+    var rowCount = map.length;
+    var columnCount = map[0].length;
+    for (var row = 0; row < rowCount; row++) {
+        var lastRow = row - 1;
+        var nextRow = row + 1;
+        for (var column = 0; column < columnCount; column++) {
+            var cell = map[row][column];
+            if (cell.isTree) {
+                [topCell, leftCell, rightCell, bottomCell] = GetCellsAround(map, row, lastRow, nextRow, column, rowCount, columnCount);
+                var tentCount = TryIsTentOrNotSet(topCell) +
+                    TryIsTentOrNotSet(leftCell) +
+                    TryIsTentOrNotSet(rightCell) +
+                    TryIsTentOrNotSet(bottomCell);
+                if (tentCount == 1) {
+                    var tentCell = [topCell, leftCell, rightCell, bottomCell].find(e => TryIsTentOrNotSet(e));
+                    if (tentCell.isTent) {
+                        cell.forceSetType(CellType.grass);
+                        tentCell.forceSetType(CellType.grass);
+                        topHints[tentCell.column]--;
+                        leftHints[tentCell.row]--;
+                        isRemoved = true;
+                    }
+                }
+            } else if (cell.isTent) {
+                [topCell, leftCell, rightCell, bottomCell] = GetCellsAround(map, row, lastRow, nextRow, column, rowCount, columnCount);
+                var treeCount = TryIsTree(topCell) +
+                    TryIsTree(leftCell) +
+                    TryIsTree(rightCell) +
+                    TryIsTree(bottomCell);
+                if (treeCount == 1) {
+                    var treeCell = [topCell, leftCell, rightCell, bottomCell].find(e => TryIsTree(e));
+                    if (treeCell.isTree) {
+                        cell.forceSetType(CellType.grass);
+                        treeCell.forceSetType(CellType.grass);
+                        topHints[cell.column]--;
+                        leftHints[cell.row]--;
+                        isRemoved = true;
+                    }
+                }
+            }
+        }
+    }
+    return isRemoved;
 }
 
 function logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, description) {
@@ -560,7 +698,7 @@ function DeepCopyMap(tentMap) {
     for (var row = 0; row < rowCount; row++) {
         newMap[row] = new Array(columnCount);
         for (var column = 0; column < columnCount; column++) {
-            newMap[row][column] = new Cell();
+            newMap[row][column] = new Cell(row, column);
             newMap[row][column].setType(tentMap[row][column].type);
         }
     }
@@ -788,22 +926,24 @@ function PlaceExplicitTents(tentMap, topHints, leftHints) {
     leftKnownTents.fill(0);
     for (var row = 0; row < rowCount; row++) {
         for (var column = 0; column < columnCount; column++) {
-            var tentStatus = tentMap[row][column];
-            if (tentStatus.isNotSet) {
+            var cell = tentMap[row][column];
+            if (cell.isNotSet) {
                 topUnknownTents[column]++;
                 leftUnknownTents[row]++;
-            }
-            if (tentStatus.isTent) {
+            } else if (cell.isTent) {
                 topKnownTents[column]++;
                 leftKnownTents[row]++;
             }
         }
     }
     for (var row = 0; row < rowCount; row++) {
+        if (leftUnknownTents[row] == 0) {
+            continue;
+        }
         if (leftKnownTents[row] + leftUnknownTents[row] == leftHints[row]) {
             for (var column = 0; column < columnCount; column++) {
-                var tentStatus = tentMap[row][column];
-                if (tentStatus.isNotSet) {
+                var cell = tentMap[row][column];
+                if (cell.isNotSet) {
                     tentMap[row][column].setType(CellType.tent);
                     isChanged = true;
                     topUnknownTents[column]--;
@@ -813,9 +953,12 @@ function PlaceExplicitTents(tentMap, topHints, leftHints) {
         }
     }
     for (var column = 0; column < columnCount; column++) {
+        if (topUnknownTents[column] == 0) {
+            continue;
+        }
         if (topKnownTents[column] + topUnknownTents[column] == topHints[column]) {
             for (var row = 0; row < rowCount; row++) {
-                var tentStatus = tentMap[row][column];
+                var cell = tentMap[row][column];
                 isChanged |= tentMap[row][column].trySetType(CellType.tent);
             }
         }
@@ -935,23 +1078,36 @@ function checkIsSolved(tentMap, topHints, leftHints) {
     var rowCount = tentMap.length;
     var columnCount = tentMap[0].length;
     var rowTentCounts = new Array(columnCount);
+    var rowNotSetCounts = new Array(columnCount);
     for (var column = 0; column < columnCount; column++) {
         rowTentCounts[column] = 0;
+        rowNotSetCounts[column] = 0;
     }
     for (var row = 0; row < rowCount; row++) {
-        var colTentCount = 0;
+        var columnTentCount = 0;
+        var columnNotSetCount = 0;
         for (var column = 0; column < columnCount; column++) {
-            if (tentMap[row][column].isTent) {
-                colTentCount++;
+            var cell = tentMap[row][column];
+            if (cell.isTent) {
+                columnTentCount++;
                 rowTentCounts[column]++;
+            } else if (cell.isNotSet) {
+                columnNotSetCount++;
+                rowNotSetCounts[column]++;
             }
         }
-        if (colTentCount != leftHints[row]) {
+        if (columnTentCount != leftHints[row]) {
+            return false;
+        }
+        if (columnNotSetCount > 0) {
             return false;
         }
     }
     for (var column = 0; column < columnCount; column++) {
         if (rowTentCounts[column] != topHints[column]) {
+            return false;
+        }
+        if (rowNotSetCounts[column]) {
             return false;
         }
     }
