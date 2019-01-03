@@ -450,7 +450,7 @@ function ExcludeAlignedCellsInLine(emptyCell, row, rowCount, isNotSet, trySetTyp
     }
 }
 
-function test(emptyCell, row, rowCount, isNotSet, trySetType) {
+function ExcludeDiagonallyJointCells(emptyCell, row, rowCount, isNotSet, trySetType) {
     var lastRow = row - 1;
     var nextRow = row + 1;
     var lastCells = emptyCell[0];
@@ -522,7 +522,7 @@ function ExcludeDiagonallyJointCellsInLine(emptyCells, hints, row, rowCount, isN
     if (discontinuousCellsCount == hints[row]) {
         isChanged |= ExcludeAlignedCellsInLine(emptyCell, row, rowCount, isNotSet, trySetType);
     } else if (discontinuousCellsCount == hints[row] + 1) {
-        isChanged |= test(emptyCell, row, rowCount, isNotSet, trySetType);
+        isChanged |= ExcludeDiagonallyJointCells(emptyCell, row, rowCount, isNotSet, trySetType);
     }
     return isChanged;
 }
@@ -960,6 +960,71 @@ function PlaceExplicitTents(tentMap, topHints, leftHints) {
             for (var row = 0; row < rowCount; row++) {
                 var cell = tentMap[row][column];
                 isChanged |= tentMap[row][column].trySetType(CellType.tent);
+            }
+        }
+    }
+
+    [rowEmptyCells, columnEmptyCells] = GetEmptyCells(tentMap);
+
+    isChanged |= PlaceOnesAndThreesTents(rowCount, rowEmptyCells, leftHints, (r, c) => {
+        return tentMap[r][c].isNotSet
+    }, (r, c) => tentMap[r][c].setType(CellType.tent));
+
+    isChanged |= PlaceOnesAndThreesTents(columnCount, columnEmptyCells, topHints, (c, r) => {
+        return tentMap[r][c].isNotSet
+    }, (c, r) => tentMap[r][c].setType(CellType.tent));
+    return isChanged;
+}
+
+function PlaceOnesAndThreesTents(rowCount, rowEmptyCells, leftHints, isNotSet, setType) {
+    var isChanged = false;
+    for (var row = 0; row < rowCount; row++) {
+        if (leftHints[row] == 0) {
+            continue;
+        }
+        var emptyCell = rowEmptyCells[row];
+        var discontinuousCellsCount = CountDiscontinuousCells(emptyCell);
+        if (discontinuousCellsCount < leftHints[row]) {
+            var diff = (leftHints[row] - discontinuousCellsCount + 1) >> 1;
+            //// (3) 0 0 0 T 0 <- 1st, 3rd and 5th are tents
+            var threes = 0;
+            var largerThanThree = 0;
+            for (var i = 0; i < emptyCell.length; i++) {
+                var emptyCellLength = emptyCell[i].length;
+                if (emptyCellLength == 3) {
+                    threes++;
+                } else if (emptyCellLength > 3) {
+                    largerThanThree++;
+                }
+            }
+            if (largerThanThree == 0 && threes == diff) {
+                for (var i = 0; i < emptyCell.length; i++) {
+                    var cells = emptyCell[0];
+                    if (cells.length == 1 && isNotSet(row, cells[0])) {
+                        setType(row, cells[0]);
+                        isChanged = true;
+                    }
+                    if (cells.length == 3 &&
+                        isNotSet(row, cells[0]) &&
+                        isNotSet(row, cells[1]) &&
+                        isNotSet(row, cells[2])) {
+                        // (2) 0 0 0 <- 1st and 3rd are tents
+                        setType(row, cells[0]);
+                        setType(row, cells[2]);
+                        isChanged = true;
+                    }
+                }
+            }
+        } else if (discontinuousCellsCount == leftHints[row]) {
+            var largerThanTwo = emptyCell.find(e => e.length > 2);
+            if (largerThanTwo == undefined || largerThanTwo == null) {
+                for (var i = 0; i < emptyCell.length; i++) {
+                    var cells = emptyCell[0];
+                    if (cells.length == 1 && isNotSet(row, cells[0])) {
+                        setType(row, cells[0]);
+                        isChanged = true;
+                    }
+                }
             }
         }
     }
