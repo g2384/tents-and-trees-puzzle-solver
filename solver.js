@@ -2,9 +2,6 @@
  * - use recursive function to speed up RemoveAssociatedTreesAndTents();
  * - elimiate the following cells:
  *  case 1:
- *   (3) 0 T 0 0 T 0
- *       3 0 3 3 0 3 <- the 2nd and 5th cell must be grass
- *  case 2:
  *   (3) 0 T 0 0 0 0 0
  *       3 0 3 3 3 0 3 <- the 2nd and 5th cell must be grass
  * - solve2() should return in json format;
@@ -433,6 +430,7 @@ function ExcludeFullyFilledLine(tentMap, topHints, leftHints) {
 function ExcludeAlignedCellsInLine(emptyCell, row, rowCount, isNotSet, trySetType) {
     var lastRow = row - 1;
     var nextRow = row + 1;
+    var lastCells = emptyCell[0];
     for (var i = 0; i < emptyCell.length; i++) {
         var cells = emptyCell[i]
         if (cells.length == 2 && isNotSet(row, cells[0]) && isNotSet(row, cells[1])) {
@@ -446,6 +444,51 @@ function ExcludeAlignedCellsInLine(emptyCell, row, rowCount, isNotSet, trySetTyp
                 trySetType(nextRow, cells[0]);
                 trySetType(nextRow, cells[1]);
             }
+        } else if (cells.length == 3 &&
+            isNotSet(row, cells[0]) &&
+            isNotSet(row, cells[1]) &&
+            isNotSet(row, cells[2])) {
+            /*(1) 0 0 0
+             *    T 0 T <- 2nd
+             */
+            if (lastRow >= 0) {
+                trySetType(lastRow, cells[1]);
+            } else if (nextRow < rowCount) {
+                trySetType(nextRow, cells[1]);
+            }
+        } else if (lastCells.length == 1 && cells.length == 3 && cells[0] == lastCells[0] + 2) {
+            /*(2) 0 T 0 0 0
+             *    T 0 T T T <- 2nd
+             */
+            if (isNotSet(row, cells[0]) &&
+                isNotSet(row, cells[1]) &&
+                isNotSet(row, cells[2]) &&
+                isNotSet(row, lastCells[0])) {
+                if (lastRow >= 0) {
+                    trySetType(lastRow, lastCells[0] + 1);
+                }
+                if (nextRow < rowCount) {
+                    trySetType(nextRow, lastCells[0] + 1);
+                }
+            }
+        } else if (lastCells.length == 3 && cells.length == 1 && cells[0] == lastCells[2] + 2) {
+            /*(2) 0 0 0 T 0
+             *    T T T 0 T <- 4th
+             */
+            if (isNotSet(row, cells[0]) &&
+                isNotSet(row, lastCells[1]) &&
+                isNotSet(row, lastCells[2]) &&
+                isNotSet(row, lastCells[0])) {
+                if (lastRow >= 0) {
+                    trySetType(lastRow, cells[0] - 1);
+                }
+                if (nextRow < rowCount) {
+                    trySetType(nextRow, cells[0] - 1);
+                }
+            }
+        }
+        if (i >= 1) {
+            lastCells = cells;
         }
     }
 }
@@ -516,15 +559,13 @@ function ExcludeDiagonallyJointCells(emptyCell, row, rowCount, isNotSet, trySetT
 }
 
 function ExcludeDiagonallyJointCellsInLine(emptyCells, hints, row, rowCount, isNotSet, trySetType) {
-    var isChanged = false;
     var emptyCell = emptyCells[row];
     var discontinuousCellsCount = CountDiscontinuousCells(emptyCell);
     if (discontinuousCellsCount == hints[row]) {
-        isChanged |= ExcludeAlignedCellsInLine(emptyCell, row, rowCount, isNotSet, trySetType);
+        ExcludeAlignedCellsInLine(emptyCell, row, rowCount, isNotSet, trySetType);
     } else if (discontinuousCellsCount == hints[row] + 1) {
-        isChanged |= ExcludeDiagonallyJointCells(emptyCell, row, rowCount, isNotSet, trySetType);
+        ExcludeDiagonallyJointCells(emptyCell, row, rowCount, isNotSet, trySetType);
     }
-    return isChanged;
 }
 
 function ExcludeDiagonallyJointCell(tentMap, topHints, leftHints) {
