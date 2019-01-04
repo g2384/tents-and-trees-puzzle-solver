@@ -21,8 +21,11 @@
         <button type="button" class="btn" onclick="demo17_17();">Demo 17×17</button>
     </p>
     <p>1. Click <a onclick="create();">Create</a> to generate a map<br>2. Click the cell to place a tree</p>
-    <div id="map"></div>
+    <div id="map" class="hidden"></div>
     <div id="result"></div>
+    <div class="slidecontainer hidden" id="sliderConainter">
+        <input type="range" min="1" value="1" class="slider" id="resultSlider">
+    </div>
 </body>
 <script src="solver.js"></script>
 <script>
@@ -47,26 +50,26 @@
 
     function demo17_17() {
         var trees = [
-            [1,0,0,1,0,0,0,0,0,0,1,0,0,0,0,1,0],
-            [0,1,0,0,0,1,1,1,0,0,0,0,0,1,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-            [0,0,0,0,1,0,0,0,1,0,1,0,0,0,0,0,0],
-            [0,0,0,0,1,0,0,0,0,1,0,0,0,1,0,0,1],
-            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-            [0,1,1,0,0,1,0,1,0,0,0,0,1,0,1,0,0],
-            [0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0],
-            [1,0,0,0,1,0,0,0,1,0,1,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
-            [0,0,0,0,0,0,0,1,0,0,0,0,1,0,1,0,0],
-            [0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1,0],
-            [1,0,0,0,1,0,1,0,0,1,0,0,0,0,0,0,1],
-            [0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0],
-            [0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-            [1,0,0,1,0,0,0,0,1,0,1,1,0,1,0,0,0],
-            [0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0]
+            [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+            [0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0],
+            [1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         ];
-        var hints_top = [5,3,4,2,4,3,4,3,5,1,5,3,2,4,2,1,7];
-        var hints_left = [6,1,3,4,2,3,3,4,1,6,3,3,4,1,5,4,5];
+        var hints_top = [5, 3, 4, 2, 4, 3, 4, 3, 5, 1, 5, 3, 2, 4, 2, 1, 7];
+        var hints_left = [6, 1, 3, 4, 2, 3, 3, 4, 1, 6, 3, 3, 4, 1, 5, 4, 5];
         setupDemo(trees, hints_top, hints_left);
     }
 
@@ -145,6 +148,15 @@
         }
     }
 
+    treeImage =
+        "data:image/png;base64,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";
+    tentImage =
+        "data:image/png;base64,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";
+    blankImage =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+    var results;
+
     function solve() {
         var rowCount = treeMap.length;
         var columnCount = treeMap[0].length;
@@ -156,7 +168,43 @@
         for (var row = 0; row < rowCount; row++) {
             leftHints[row] = parseInt(document.getElementById("left_hint_" + row).value);
         }
-        resultDiv.innerHTML = solve2(treeMap, topHints, leftHints);
+        var resultString = solve2(treeMap, topHints, leftHints);
+        results = JSON.parse(resultString);
+        sliderConainter.classList.remove("hidden");
+        slider.value = 1;
+        resultDiv.innerHTML = toResultHtml(0);
+        slider.max = results.length;
+    }
+
+    function toResultHtml(i) {
+        var result = results[i];
+        var resultStr = "Step " + (i + 1) + ": " + result["message"] + "<br>"
+        var map = result["map"];
+        if (map == null && i > 1) {
+            map = results[i - 1]["map"];
+        }
+        if (map != null) {
+            resultStr += toImageHtml(map)
+        };
+        return resultStr;
+    }
+
+    var slider = document.getElementById("resultSlider");
+    var sliderConainter = document.getElementById("sliderConainter");
+    var output = document.getElementById("result");
+
+    slider.oninput = function () {
+        resultDiv.innerHTML = toResultHtml(this.value - 1);
+    }
+
+    function toImageHtml(tentMap) {
+        var result = stringify(tentMap).replace(/\n/g, "</div><div class=map-row>");
+        result = result.replace(/T/g, "<div class=\"tree-cell cell\"><img src=\"" + treeImage + "\"/></div>");
+        result = result.replace(/[_?]/g, "<div class=\"unknown-cell cell\"><img src=\"" + blankImage + "\"/></div>");
+        result = result.replace(/▲/g, "<div class=\"tent-cell cell\"><img src=\"" + tentImage + "\"/></div>");
+        result = result.replace(/□/g, "<div class=\"grass-cell cell\"><img src=\"" + blankImage + "\"/></div>");
+        return "<div class='text-map'><div class=map-row>" +
+            result + "</div></div>";
     }
 
     function setTree(i, j) { //i = horizontal, j = vertical
@@ -169,7 +217,9 @@
 
     function create() {
         resultDiv.innerHTML = "";
+        sliderConainter.classList.add("hidden");
         var map = document.getElementById("map");
+        map.classList.remove("hidden");
         var width = parseInt(document.getElementById("width").value);
         var length = parseInt(document.getElementById("length").value);
 
@@ -184,7 +234,8 @@
         const squareSize = (95 / (width + 1));
         var topHintsHtml = new Array(width);
         for (var i = 0; i < width; i++) {
-            topHintsHtml[i] = `<div class="no_border_square_top" style="width:${squareSize}%; padding-bottom:${squareSize}%">
+            topHintsHtml[i] =
+                `<div class="no_border_square_top" style="width:${squareSize}%; padding-bottom:${squareSize}%">
 			  <div class="numTents">
 					<p class="top_num_tents" ><input type="number" id="top_hint_${i}"
        					min="0"
@@ -195,12 +246,15 @@
 				</div>
 			</div>`;
         }
-        var mapHtml = `<div class="no_border_square_top" style="width:${squareSize}%; padding-bottom:${squareSize}%">
+        var mapHtml =
+            `<div class="no_border_square_top" style="width:${squareSize}%; padding-bottom:${squareSize}%">
     				<div class="corner">
     				</div>
-				</div>` + topHintsHtml.join("");
+				</div>` +
+            topHintsHtml.join("");
         for (var i = 0; i < length; i++) {
-            mapHtml += `<div class="no_border_square_front" style="width:${squareSize}%; padding-bottom:${squareSize}%">
+            mapHtml +=
+                `<div class="no_border_square_front" style="width:${squareSize}%; padding-bottom:${squareSize}%">
 			  <div class="numTents">
 					<p class="top_num_tents" ><input type="number" id="left_hint_${i}"
        					min="0"
@@ -211,7 +265,8 @@
 				</div>
 			</div>`;
             for (var j = 0; j < width; j++) {
-                mapHtml += `<div class="square" id="${i}_${j}" onclick="setTree(${i}, ${j});" style="width:${squareSize}%; padding-bottom:${squareSize}%">
+                mapHtml +=
+                    `<div class="square" id="${i}_${j}" onclick="setTree(${i}, ${j});" style="width:${squareSize}%; padding-bottom:${squareSize}%">
               <div class="content">
               </div>
             </div>`;

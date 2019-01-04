@@ -4,7 +4,6 @@
  *  case 1:
  *   (3) 0 T 0 0 0 0 0
  *       3 0 3 3 3 0 3 <- the 2nd and 5th cell must be grass
- * - solve2() should return in json format;
  * - add more unit tests; use a proper unit test library;
  */
 
@@ -111,10 +110,60 @@ class CellType {
     }
 }
 
+class MapSnapshot {
+    constructor(changedCells, map, isValid, isSolved, message) {
+        this._changedCells = changedCells;
+        this._map = (map == null || map == undefined) ? null : DeepCopyMap(map);
+        this._isValid = isValid;
+        this._isSolved = isSolved;
+        this._message = message;
+    }
+
+    get changedCells() {
+        return this._changedCells;
+    }
+
+    get map() {
+        return this._map;
+    }
+
+    get isValid() {
+        return this._isValid;
+    }
+
+    get isSolved() {
+        return this._isSolved;
+    }
+}
+
+/* returned format:
+ {
+     [
+         {
+            "changed" : [Cell, Cell, Cell ...]
+            "map" :
+                [
+                    [Cell, Cell, Cell ...]
+                    ...
+                ]
+        }
+     ], [
+         {
+            "changed" : [Cell, Cell, Cell ...]
+            "map" :
+                [
+                    [Cell, Cell, Cell ...]
+                    ...
+                ]
+        }
+     ]
+ }
+ */
+
 function solve2(treeMap, topHints, leftHints) {
     var rowCount = leftHints.length;
     var columnCount = topHints.length;
-    var result = "";
+    var result = [];
     var tentMap = new Array(rowCount);
     for (var row = 0; row < rowCount; row++) {
         tentMap[row] = new Array(columnCount);
@@ -129,19 +178,18 @@ function solve2(treeMap, topHints, leftHints) {
             }
         }
     }
-    result += "input:<br>";
-    result += toHtml(tentMap);
+
     var isValid = false;
     [isValid, errorMessage] = checkIsValid(tentMap, topHints, leftHints);
-    result += "is valid: " + isValid + "<br><br>";
     if (!isValid) {
         return result + "<br>error: " + errorMessage;
     }
+    result.push(new MapSnapshot([], tentMap, isValid, false, "input"));
     var stepCount = 1;
     var prevState = toHtml(tentMap);
 
     RemoveZeroColumnRow(tentMap, topHints, leftHints);
-    [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "ignore zero columns and rows");
+    [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "ignore zero columns and rows");
     if (canReturn) {
         return result;
     }
@@ -153,13 +201,13 @@ function solve2(treeMap, topHints, leftHints) {
         CopySetCells(simplifiedMap, tentMap);
         var isRemoved = RemoveAssociatedTreesAndTents(simplifiedMap, simplifiedTopHints, simplifiedLeftHints);
         if (isRemoved) {
-            result += "<br>Remove associated trees and tents.</br>"
+            result.push(new MapSnapshot(null, null, false, false, "Remove associated trees and tents."));
         }
 
         var isChanged = excludeLand(simplifiedMap);
         if (isChanged) {
             CopySetCells(tentMap, simplifiedMap);
-            [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude open land (no adjacent tree)")
+            [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude open land (no adjacent tree)")
             if (canReturn) {
                 break;
             }
@@ -172,7 +220,7 @@ function solve2(treeMap, topHints, leftHints) {
         if (isChanged) {
             CopySetCells(tentMap, simplifiedMap);
             SetGrassAroundTent(tentMap);
-            [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents based on hints")
+            [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents based on hints")
             if (canReturn) {
                 break;
             }
@@ -185,7 +233,7 @@ function solve2(treeMap, topHints, leftHints) {
         if (isChanged) {
             CopySetCells(tentMap, simplifiedMap);
             SetGrassAroundTent(tentMap);
-            [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents next to isolated trees")
+            [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents next to isolated trees")
             if (canReturn) {
                 break;
             }
@@ -198,7 +246,7 @@ function solve2(treeMap, topHints, leftHints) {
         if (isChanged) {
             CopySetCells(tentMap, simplifiedMap);
             SetGrassAroundTent(tentMap);
-            [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents based on hints and deduction")
+            [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "fill in tents based on hints and deduction")
             if (canReturn) {
                 break;
             }
@@ -210,7 +258,7 @@ function solve2(treeMap, topHints, leftHints) {
         isChanged = ExcludeFullyFilledLine(simplifiedMap, simplifiedTopHints, simplifiedLeftHints);
         if (isChanged) {
             CopySetCells(tentMap, simplifiedMap);
-            [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude fully filled lines")
+            [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude fully filled lines")
             if (canReturn) {
                 break;
             }
@@ -222,7 +270,7 @@ function solve2(treeMap, topHints, leftHints) {
         isChanged = ExcludeDiagonallyJointCell(simplifiedMap, simplifiedTopHints, simplifiedLeftHints);
         if (isChanged) {
             CopySetCells(tentMap, simplifiedMap);
-            [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude diagonally joint cells")
+            [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude diagonally joint cells")
             if (canReturn) {
                 break;
             }
@@ -234,7 +282,7 @@ function solve2(treeMap, topHints, leftHints) {
         isChanged = ExcludeCornerCell(simplifiedMap);
         if (isChanged) {
             CopySetCells(tentMap, simplifiedMap);
-            [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude corner cell")
+            [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude corner cell")
             if (canReturn) {
                 break;
             }
@@ -246,7 +294,7 @@ function solve2(treeMap, topHints, leftHints) {
         isChanged = ExcludeImpossibleCell(simplifiedMap);
         if (isChanged) {
             CopySetCells(tentMap, simplifiedMap);
-            [prevState, result, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude impossible cells")
+            [prevState, stepCount, canContinue, canReturn] = logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, "exclude impossible cells")
             if (canReturn) {
                 break;
             }
@@ -257,7 +305,10 @@ function solve2(treeMap, topHints, leftHints) {
         break;
     }
 
-    return result;
+    var resultString = JSON.stringify(result);
+    resultString = resultString.replace(/_/g, "");
+    resultString = resultString.replace(/changedCells/g, "changed");
+    return resultString;
 }
 
 function DeepCopyArray(arr) {
@@ -365,24 +416,24 @@ function RemoveAssociatedTreesAndTents(map, topHints, leftHints) {
 function logStatus(tentMap, topHints, leftHints, prevState, result, stepCount, description) {
     [isValid, errorMessage] = checkIsValid(tentMap, topHints, leftHints);
     if (!isValid) {
-        result += "<br>error: " + errorMessage;
-        return [prevState, result, stepCount, false, true];
+        var snapshot = new MapSnapshot(null, null, false, false, "<br>error: " + errorMessage);
+        result.push(snapshot);
+        return [prevState, stepCount, false, true];
     }
 
     var isSolved = checkIsSolved(tentMap, topHints, leftHints);
     var currentState = toHtml(tentMap);
     if (prevState != currentState) {
-        result += "step " + stepCount + ": " + description + "<br>";
-        result += currentState;
-        result += "is solved: " + isSolved + "<br><br>";
+        var snapshot = new MapSnapshot(null, tentMap, false, isSolved, description);
+        result.push(snapshot);
         if (isSolved) {
-            return [prevState, result, stepCount, false, true];
+            return [prevState, stepCount, false, true];
         }
         stepCount++;
         prevState = currentState;
-        return [prevState, result, stepCount, true, false];
+        return [prevState, stepCount, true, false];
     }
-    return [prevState, result, stepCount, false, false];
+    return [prevState, stepCount, false, false];
 }
 
 function ExcludeFullyFilledLine(tentMap, topHints, leftHints) {
